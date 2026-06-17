@@ -11,10 +11,11 @@ import DelayAnalysis from "./components/DelayAnalysis";
 import SectorAnalysis from "./components/SectorAnalysis";
 import MarketChartAnalysis from "./components/MarketChartAnalysis";
 import SignalSender from "./components/SignalSender";
+import DealerAnalysis from "./components/DealerAnalysis";
 import { SignalConfigPanel, useSignalRelay } from "./hooks/useSignalRelay";
 import LandingPage from "./components/LandingPage";
 import CodviberLogo from "./components/CodviberLogo";
-import { RotateCw, Clock, Sparkles, TrendingUp, HelpCircle, ShieldCheck, RefreshCw, Home, BarChart3, Layers, Radio, LayoutDashboard, Brain, Target, DollarSign, Timer, BarChart4, History, Waves, Wifi, Menu, X, Crosshair } from "lucide-react";
+import { RotateCw, Clock, Sparkles, TrendingUp, HelpCircle, ShieldCheck, RefreshCw, Home, BarChart3, Layers, Radio, LayoutDashboard, Brain, Target, DollarSign, Timer, BarChart4, History, Waves, Wifi, Menu, X, Crosshair, Users, Activity, Zap, Award, Trophy, Eye, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -524,6 +525,7 @@ export default function App() {
                       { id: 'patterns', icon: Target, label: 'Padrões', desc: 'Pattern + Soros' },
                       { id: 'simulator', icon: DollarSign, label: 'Simulador', desc: 'Estratégias' },
                       { id: 'delays', icon: Timer, label: 'Atrasos', desc: 'Ciclos' },
+                      { id: 'dealer', icon: Users, label: 'Dealer', desc: 'Análise por Dealer' },
                       { id: 'sector', icon: Crosshair, label: 'Setor', desc: 'Análise Completa' },
                       { id: 'frequency', icon: BarChart4, label: 'Frequência', desc: 'Distribuição' },
                       { id: 'history', icon: History, label: 'Histórico', desc: 'Resultados' },
@@ -577,6 +579,7 @@ export default function App() {
                 {activeMenu === 'patterns' && <PatternDetector spins={filteredSpins} candlePeriodMinutes={candlePeriodMinutes} />}
                 {activeMenu === 'simulator' && <BetSimulator spins={filteredSpins} />}
                 {activeMenu === 'delays' && <DelayAnalysis allSpins={filteredSpins} />}
+                {activeMenu === 'dealer' && <DealerAnalysis allSpins={filteredSpins} />}
                 {activeMenu === 'sector' && <SectorAnalysis allSpins={filteredSpins} />}
 
                 {activeMenu === 'frequency' && (
