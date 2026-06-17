@@ -132,18 +132,61 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
   // Signal relay hook (shared with extension)
   const { extensionId, sendSignal, isConfigured } = useSignalRelay();
   const [signalToast, setSignalToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [autoSendEnabled, setAutoSendEnabled] = useState(() => {
-    try { return localStorage.getItem("pd_auto_send") === "true"; } catch { return false; }
+  
+  // Selected pattern types for auto-send (Set of type strings, "any" = all)
+  const [selectedAutoPatterns, setSelectedAutoPatterns] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("pd_selected_patterns");
+      if (saved === "any") return new Set(["any"]);
+      if (saved) return new Set(JSON.parse(saved));
+      return new Set(["any"]); // Default: send all patterns
+    } catch { return new Set(["any"]); }
   });
   const lastAutoSentTipId = useRef<string | null>(null);
 
-  // Persist auto-send setting
+  // Persist selected patterns
   useEffect(() => {
     try {
-      if (autoSendEnabled) localStorage.setItem("pd_auto_send", "true");
-      else localStorage.removeItem("pd_auto_send");
+      if (selectedAutoPatterns.has("any")) {
+        localStorage.setItem("pd_selected_patterns", "any");
+      } else {
+        localStorage.setItem("pd_selected_patterns", JSON.stringify([...selectedAutoPatterns]));
+      }
     } catch {}
-  }, [autoSendEnabled]);
+  }, [selectedAutoPatterns]);
+
+  const togglePatternSelection = (type: string) => {
+    setSelectedAutoPatterns(prev => {
+      const next = new Set(prev);
+      if (type === "any") {
+        // Toggle "any": if already any, clear all; else set any
+        if (next.has("any")) return new Set();
+        return new Set(["any"]);
+      }
+      // Remove "any" when selecting specific
+      next.delete("any");
+      if (next.has(type)) {
+        next.delete(type);
+        // If nothing selected, revert to "any"
+        if (next.size === 0) return new Set(["any"]);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  };
+
+  const isPatternSelected = (type: string): boolean => {
+    return selectedAutoPatterns.has("any") || selectedAutoPatterns.has(type);
+  };
+
+  const PATTERN_TYPES_CONFIG = [
+    { key: "repetition", label: "Repetição", color: "text-amber-400", desc: "Sequências consecutivas" },
+    { key: "alternation", label: "Alternância", color: "text-emerald-400", desc: "Zig-zag entre setores" },
+    { key: "occurrence", label: "Frequência", color: "text-blue-400", desc: "Alta ocorrência em N giros" },
+    { key: "cycle", label: "Ciclo", color: "text-purple-400", desc: "Ritmo periódico" },
+    { key: "schedule", label: "Correlação", color: "text-pink-400", desc: "Padrões de horário/sequência" },
+  ];
 
   // Persist active tip to localStorage
   useEffect(() => {
@@ -931,13 +974,14 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
     setSignalToast(result);
   }, [activeTip, extensionId, sendSignal]);
 
-  // Auto-send signal when activeTip is generated
+  // Auto-send signal when activeTip is generated — only if its pattern type is selected
   useEffect(() => {
-    if (autoSendEnabled && activeTip && activeTip.id !== lastAutoSentTipId.current) {
+    const isSelected = activeTip && isPatternSelected(activeTip.type);
+    if (isSelected && activeTip && activeTip.id !== lastAutoSentTipId.current) {
       lastAutoSentTipId.current = activeTip.id;
       handleSendTipToExtension();
     }
-  }, [autoSendEnabled, activeTip, handleSendTipToExtension]);
+  }, [activeTip, handleSendTipToExtension, selectedAutoPatterns]);
 
   // Simulated bankroll calculations (with dynamic base and real multipliers)
   const currentBankroll = bankroll;
@@ -1327,19 +1371,35 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
                         📡 Enviar para Extensão
                       </button>
 
-                      {/* Auto-send toggle */}
-                      <button
-                        onClick={() => setAutoSendEnabled(!autoSendEnabled)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-[0.97] ${
-                          autoSendEnabled
-                            ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.35)]"
-                            : "bg-white/[0.03] border-white/10 text-slate-500 hover:text-slate-300 hover:bg-white/[0.06]"
-                        }`}
-                        title={autoSendEnabled ? "Auto-envio ativo — sinais enviados automaticamente" : "Ativar auto-envio automático de sinais"}
-                      >
-                        <Zap size={12} className={autoSendEnabled ? "text-emerald-400 animate-pulse" : ""} />
-                        Auto
-                      </button>
+                      {/* Pattern type auto-send selectors */}
+                      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/10">
+                        <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider mr-1">Auto:</span>
+                        <button
+                          onClick={() => togglePatternSelection("any")}
+                          className={`px-2 py-1 rounded-md text-[9px] font-mono font-bold transition-all cursor-pointer border ${
+                            selectedAutoPatterns.has("any")
+                              ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300 shadow-sm"
+                              : "bg-transparent border-transparent text-slate-500 hover:text-slate-300"
+                          }`}
+                          title="Enviar sinal para qualquer padrão detectado"
+                        >
+                          🎯 Todos
+                        </button>
+                        {PATTERN_TYPES_CONFIG.map(pt => (
+                          <button
+                            key={pt.key}
+                            onClick={() => togglePatternSelection(pt.key)}
+                            className={`px-2 py-1 rounded-md text-[9px] font-mono font-bold transition-all cursor-pointer border ${
+                              selectedAutoPatterns.has(pt.key)
+                                ? `${pt.color} bg-white/10 border-white/20 shadow-sm`
+                                : "bg-transparent border-transparent text-slate-600 hover:text-slate-400"
+                            }`}
+                            title={pt.desc}
+                          >
+                            {pt.label}
+                          </button>
+                        ))}
+                      </div>
 
                       {/* Toast feedback */}
                       <AnimatePresence>
