@@ -463,7 +463,7 @@ export default function App() {
                       { id: 'delays', icon: Timer, label: 'Atrasos', desc: 'Ciclos' },
                       { id: 'frequency', icon: BarChart4, label: 'Frequência', desc: 'Distribuição' },
                       { id: 'history', icon: History, label: 'Histórico', desc: 'Resultados' },
-                      { id: 'market', icon: Waves, label: 'Velas', desc: 'Gráfico' },
+                      { id: 'market', icon: Layers, label: 'Padrões', desc: 'Velas & Catálogo' },
                       { id: 'signals', icon: Wifi, label: 'Sinais', desc: 'Extension Relay' },
                     ].map(item => (
                       <button
