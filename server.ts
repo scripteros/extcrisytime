@@ -62,7 +62,7 @@ async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "3004");
 
-  app.use(express.json());
+  app.use(express.json({ limit: "10mb" }));
 
   // CORS for extension connections
   app.use((req, res, next) => {
@@ -104,7 +104,7 @@ async function startServer() {
     try {
       const { spinsContext, statsContext } = req.body;
       
-      const groqKey = process.env.GROQ_API_KEY || "gsk_db...9VkI";
+      const groqKey = req.body.groqApiKey || process.env.GROQ_API_KEY || "";
       
       if (!groqKey) {
         return res.status(400).json({ error: "Chave do Groq API não configurada" });
@@ -183,12 +183,12 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
     } catch (err: any) {
       console.error("Erro na API Groq:", err);
       // Fallback: generate local statistical analysis
-      const sc = statsContext;
-      const spins = spinsContext || [];
-      const last15 = spins.slice(0, 15);
+      const fbSpins: any[] = req.body.spinsContext || [];
+      const fbStats: any = req.body.statsContext || {};
+      const last15 = fbSpins.slice(0, 15);
       const sectorCounts: Record<string, number> = {};
       const sectorMult: Record<string, number[]> = {};
-      for (const s of spins) {
+      for (const s of fbSpins) {
         if (!sectorCounts[s.sectorKey]) { sectorCounts[s.sectorKey] = 0; sectorMult[s.sectorKey] = []; }
         sectorCounts[s.sectorKey]++;
         sectorMult[s.sectorKey].push(s.maxMultiplier);
@@ -196,8 +196,8 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
       const sorted = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]);
       const top1 = sorted[0]?.[0] || "1";
       const top2 = sorted[1]?.[0] || "2";
-      const top1Pct = sc.totalSpins > 0 ? ((sorted[0]?.[1] || 0) / sc.totalSpins * 100).toFixed(1) : "0";
-      const top2Pct = sc.totalSpins > 0 ? ((sorted[1]?.[1] || 0) / sc.totalSpins * 100).toFixed(1) : "0";
+      const top1Pct = fbStats.totalSpins > 0 ? ((sorted[0]?.[1] || 0) / fbStats.totalSpins * 100).toFixed(1) : "0";
+      const top2Pct = fbStats.totalSpins > 0 ? ((sorted[1]?.[1] || 0) / fbStats.totalSpins * 100).toFixed(1) : "0";
       const avgMult1 = sectorMult[top1]?.length ? (sectorMult[top1].reduce((a, b) => a + b, 0) / sectorMult[top1].length).toFixed(1) : "1.0";
       
       // Safe strategy: Covering 1+2 gives ~63% of segments, covering 1+2+5 gives ~76%
@@ -206,25 +206,25 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
       
       const lastResult = last15[0];
       const lastSectorKey = lastResult?.sectorKey || "N/A";
-      const delayText = sc.roundsSinceLastBonus > 10 
-        ? `⚠️ **ALERTA**: ${sc.roundsSinceLastBonus} rodadas sem bônus! Saturação de ${sc.predictedBonusChance.toFixed(1)}% — probabilidade de bônus **muito alta** nas próximas rodadas.`
-        : sc.roundsSinceLastBonus > 5
-          ? `🔸 ${sc.roundsSinceLastBonus} rodadas sem bônus (${sc.predictedBonusChance.toFixed(1)}% de saturação).`
-          : `🟢 Apenas ${sc.roundsSinceLastBonus} rodadas desde o último bônus.`;
+      const delayText = fbStats.roundsSinceLastBonus > 10 
+        ? `⚠️ **ALERTA**: ${fbStats.roundsSinceLastBonus} rodadas sem bônus! Saturação de ${fbStats.predictedBonusChance.toFixed(1)}% — probabilidade de bônus **muito alta** nas próximas rodadas.`
+        : fbStats.roundsSinceLastBonus > 5
+          ? `🔸 ${fbStats.roundsSinceLastBonus} rodadas sem bônus (${fbStats.predictedBonusChance.toFixed(1)}% de saturação).`
+          : `🟢 Apenas ${fbStats.roundsSinceLastBonus} rodadas desde o último bônus.`;
 
       const advice = `**📊 ANÁLISE ESTATÍSTICA DA MESA**
 
 **1. ESTADO CLIMÁTICO DA MESA**
-📍 Período analisado: ${sc.totalSpins} giros
-🎯 Setor mais frequente: **${top1}** (${top1Pct}% das ocorrências, média ${avgMult1}x)
-🥈 Segundo setor: **${top2}** (${top2Pct}%)
-📊 Bônus: ${sc.bonusCount} de ${sc.totalSpins} giros (${sc.bonusPercentage.toFixed(1)}%)
+|📍 Período analisado: ${fbStats.totalSpins} giros
+|🎯 Setor mais frequente: **${top1}** (${top1Pct}% das ocorrências, média ${avgMult1}x)
+|🥈 Segundo setor: **${top2}** (${top2Pct}%)
+|📊 Bônus: ${fbStats.bonusCount} de ${fbStats.totalSpins} giros (${fbStats.bonusPercentage.toFixed(1)}%)
 ${delayText}
 
 **2. PREVISÃO DE PRÓXIMO BÔNUS**
-📈 Saturação estatística: ${sc.predictedBonusChance.toFixed(1)}%
-🔮 Confiança da previsão: **${sc.predictionConfidence}**
-💡 Último bônus há ${sc.roundsSinceLastBonus} giros
+|📈 Saturação estatística: ${fbStats.predictedBonusChance.toFixed(1)}%
+|🔮 Confiança da previsão: **${fbStats.predictionConfidence}**
+|💡 Último bônus há ${fbStats.roundsSinceLastBonus} giros
 
 **3. ESTRATÉGIA RECOMENDADA — Cobertura Segura (${safeCov1}/54 = ${((safeCov1/54)*100).toFixed(0)}% dos segmentos)**
 ✅ **Cobertura 1 + 2**: Cobre ${safeCov1}/54 segmentos (${((safeCov1/54)*100).toFixed(0)}% de acerto teórico)
@@ -241,12 +241,35 @@ ${delayText}
 
 **5. Recomendações para a PRÓXIMA RODADA**
 🎯 **${top1}** está em tendência (${top1Pct}% das ocorrências)
-🎯 **${top2}** como segundo alvo (${top2Pct}%)${sc.roundsSinceLastBonus > 8 ? `\n🎯 **Bônus**: Alta probabilidade de aparecer (${sc.predictedBonusChance.toFixed(1)}%)` : ""}
+|🎯 **${top2}** como segundo alvo (${top2Pct}%)${fbStats.roundsSinceLastBonus > 8 ? `\\n🎯 **Bônus**: Alta probabilidade de aparecer (${fbStats.predictedBonusChance.toFixed(1)}%)` : ""}
 
-📌 *Análise local (Groq API indisponível). As probabilidades são baseadas na distribuição real dos ${sc.totalSpins} giros analisados.*`;
+📌 *Análise local (Groq API indisponível). As probabilidades são baseadas na distribuição real dos ${fbStats.totalSpins} giros analisados.*`;
 
       res.json({ advice });
     }
+  });
+
+  // Save Groq API key
+  app.post("/api/save-groq-key", (req, res) => {
+    const { apiKey } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ error: "apiKey é obrigatório" });
+    }
+    // Store in a simple in-memory variable - persists until server restart
+    // Also write to .env for future restarts
+    process.env.GROQ_API_KEY = apiKey;
+    try {
+      const fs = require("fs");
+      let envContent = fs.readFileSync(".env", "utf8");
+      if (envContent.includes("GROQ_API_KEY=")) {
+        envContent = envContent.replace(/GROQ_API_KEY=.*/g, `GROQ_API_KEY=${apiKey}`);
+      } else {
+        envContent += `\nGROQ_API_KEY=${apiKey}\n`;
+      }
+      fs.writeFileSync(".env", envContent);
+    } catch {}
+    console.log("✅ GROQ_API_KEY updated via app");
+    res.json({ success: true });
   });
 
   // ==================== Signal Endpoints ====================

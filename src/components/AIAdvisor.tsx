@@ -12,6 +12,24 @@ export default function AIAdvisor({ spins, stats }: AIAdvisorProps) {
   const [advice, setAdvice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [groqKey, setGroqKey] = useState<string>(() => localStorage.getItem("groq_api_key") || "");
+  const [savingKey, setSavingKey] = useState(false);
+
+  const saveApiKey = async () => {
+    if (!groqKey.trim()) return;
+    setSavingKey(true);
+    try {
+      const resp = await fetch("/api/save-groq-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: groqKey.trim() }),
+      });
+      if (resp.ok) {
+        localStorage.setItem("groq_api_key", groqKey.trim());
+      }
+    } catch {}
+    setSavingKey(false);
+  };
 
   const fetchAnalysis = async () => {
     setIsLoading(true);
@@ -25,6 +43,7 @@ export default function AIAdvisor({ spins, stats }: AIAdvisorProps) {
         body: JSON.stringify({
           spinsContext: spins,
           statsContext: stats,
+          groqApiKey: groqKey.trim() || undefined,
         }),
       });
 
@@ -124,8 +143,24 @@ export default function AIAdvisor({ spins, stats }: AIAdvisorProps) {
           </div>
         </div>
 
-        {/* Trigger Button */}
-        <div className="shrink-0">
+        {/* Trigger Button + API Key */}
+        <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded-xl px-3 py-1.5">
+            <input
+              type="password"
+              value={groqKey}
+              onChange={(e) => setGroqKey(e.target.value)}
+              placeholder="Chave da API Groq"
+              className="bg-transparent text-[10px] text-slate-300 w-28 outline-none placeholder:text-slate-600 font-mono"
+            />
+            <button
+              onClick={saveApiKey}
+              disabled={savingKey || !groqKey.trim()}
+              className="text-[9px] uppercase font-bold text-[#d4a84c] hover:text-[#ec4899] transition-colors disabled:opacity-30 cursor-pointer"
+            >
+              {savingKey ? "..." : "Salvar"}
+            </button>
+          </div>
           <button
             onClick={fetchAnalysis}
             disabled={isLoading}
