@@ -101,15 +101,23 @@ function stopTimerWatcher() {
 async function executeClickSequence(signal) {
   // 1. Click chip value
   if (signal.chip) {
-    const chipEls = findElements(`[data-role="chip"][data-value="${signal.chip}"]`);
-    for (const el of chipEls) {
-      try {
-        scrollIntoView(el);
-        await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-        clickElement(el);
-      } catch {}
+    // Try data-role first, fallback to .ftNWJU.CxpIc9 with index
+    var chipEls = findElements('[data-role="chip"][data-value="' + signal.chip + '"]');
+    if (chipEls.length === 0) {
+      // Map chip value to index in .ftNWJU.CxpIc9 list
+      var chipIndexMap = { '0.5': 0, '0,50': 0, '1': 1, '2.5': 2, '2,50': 2, '5': 3, '10': 4, '25': 5 };
+      var idx = chipIndexMap[String(signal.chip)] || 0;
+      chipEls = findElements('.ftNWJU.CxpIc9');
+      if (idx < chipEls.length) chipEls = [chipEls[idx]];
     }
-    await new Promise(r => setTimeout(r, signal.delay || 300));
+    for (var _i = 0; _i < chipEls.length; _i++) {
+      try {
+        scrollIntoView(chipEls[_i]);
+        await new Promise(function(r) { return setTimeout(r, 50 + Math.random() * 50); });
+        clickElement(chipEls[_i]);
+      } catch (e) {}
+    }
+    await new Promise(function(r) { return setTimeout(r, signal.delay || 300); });
   }
 
   // 2. Click each spot

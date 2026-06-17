@@ -177,10 +177,11 @@ async function fallbackExecute(tab, signal) {
   // 1. Click chip
   if (signal.chip) {
     try {
+      var chipIdx = { '0.5': 0, '0,50': 0, '1': 1, '2.5': 2, '2,50': 2, '5': 3, '10': 4, '25': 5 }[String(signal.chip)];
       await chrome.tabs.sendMessage(tab.id, {
         action: 'clickElements',
-        selector: `[data-role="chip"][data-value="${signal.chip}"]`,
-        delay: 100, repeat: 1, order: 'all', index: null
+        selector: '.ftNWJU.CxpIc9',
+        delay: 100, repeat: 1, order: 'all', index: chipIdx !== undefined ? chipIdx : 0
       });
     } catch {}
     await new Promise(r => setTimeout(r, signal.delay || 300));

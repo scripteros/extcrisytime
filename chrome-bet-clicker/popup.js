@@ -162,7 +162,7 @@ async function testSpot5() { await spotClick({ selector: '.gAopRU', index: 2 }, 
 async function testSpot10() { await spotClick({ selector: '.gAopRU', index: 3 }, 'Spot 10'); }
 
 async function testChip() {
-  await spotClick({ selector: '[data-role="chip"][data-value="0.5"]' }, 'Ficha R$ 0,50');
+  await spotClick({ selector: '.ftNWJU.CxpIc9', index: 0 }, 'Ficha R$ 0,50 (1ª)');
 }
 
 async function testBetOnAll() {
