@@ -497,14 +497,7 @@ export default function App() {
                   <div className="space-y-6">
                     <AIAdvisor spins={filteredSpins} stats={stats} />
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                      <div className="col-span-1 lg:col-span-5">
-                        <FrequencyAnalysis
-                          allSpins={filteredSpins}
-                          selectedSector={selectedFilter === "all" || selectedFilter === "bonus" ? null : selectedFilter}
-                          onSelectSector={handleSelectSectorFromFrequency}
-                        />
-                      </div>
-                      <div className="col-span-1 lg:col-span-7">
+                      <div className="col-span-1 lg:col-span-12">
                         <HistoryGrid
                           spins={filteredSpins}
                           selectedFilter={selectedFilter}
