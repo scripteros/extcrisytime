@@ -32,6 +32,15 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string>("dashboard");
 
+  // Global analysis window (candle size / period) shared between PatternDetector and MarketChartAnalysis
+  const [analysisWindow, setAnalysisWindow] = useState<number>(() => {
+    try { const saved = localStorage.getItem("global_analysis_window"); return saved ? parseInt(saved) : 10; }
+    catch { return 10; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("global_analysis_window", analysisWindow.toString()); } catch {}
+  }, [analysisWindow]);
+
   // Shared signal relay configuration (persisted in localStorage)
   const signalRelay = useSignalRelay();
   const { extensionId, setExtensionId } = signalRelay;
@@ -311,6 +320,25 @@ export default function App() {
               </div>
             )}
 
+            {/* Global Analysis Window (Periodo) Selector — shared by PatternDetector & MarketChartAnalysis */}
+            <div className="flex items-center gap-1 rounded-xl bg-indigo-500/[0.03] border border-indigo-500/20 p-1 px-2.5 h-[38px] transition-all" title="Período de análise compartilhado entre Simulador de Padrões e Catalogador de Velas">
+              <BarChart3 size={12} className="text-indigo-400 shrink-0" />
+              <span className="text-[9px] uppercase font-mono font-black text-indigo-400 select-none hidden sm:inline">Janela:</span>
+              <select
+                value={analysisWindow}
+                onChange={(e) => setAnalysisWindow(parseInt(e.target.value))}
+                className="bg-transparent text-[10px] text-indigo-200 font-mono font-bold outline-none cursor-pointer border-none focus:ring-0 p-0 py-0.5"
+                style={{ WebkitAppearance: 'menulist', width: '48px' }}
+              >
+                <option value={5} className="bg-[#0b0b10]">5r</option>
+                <option value={10} className="bg-[#0b0b10]">10r</option>
+                <option value={15} className="bg-[#0b0b10]">15r</option>
+                <option value={20} className="bg-[#0b0b10]">20r</option>
+                <option value={30} className="bg-[#0b0b10]">30r</option>
+                <option value={50} className="bg-[#0b0b10]">50r</option>
+              </select>
+              </div>
+
             {/* Signal Relay Config - Extension ID */}
             <SignalConfigPanel
               extensionId={extensionId}
@@ -510,7 +538,7 @@ export default function App() {
                 )}
 
                 {activeMenu === 'aiadvisor' && <AIAdvisor spins={filteredSpins} stats={stats} />}
-                {activeMenu === 'patterns' && <PatternDetector spins={filteredSpins} />}
+                {activeMenu === 'patterns' && <PatternDetector spins={filteredSpins} analysisWindow={analysisWindow} />}
                 {activeMenu === 'simulator' && <BetSimulator spins={filteredSpins} />}
                 {activeMenu === 'delays' && <DelayAnalysis allSpins={filteredSpins} />}
 
@@ -530,7 +558,7 @@ export default function App() {
                   />
                 )}
 
-                {activeMenu === 'market' && <MarketChartAnalysis allSpins={filteredSpins} />}
+                {activeMenu === 'market' && <MarketChartAnalysis allSpins={filteredSpins} candleSize={analysisWindow} />}
                 {activeMenu === 'signals' && <SignalSender />}
 
                 {/* Footer card */}

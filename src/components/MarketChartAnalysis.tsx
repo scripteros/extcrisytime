@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "motion/react";
 
 interface MarketChartAnalysisProps {
   allSpins: ParsedSpin[];
+  candleSize: number; // Global analysis window from App.tsx
 }
 
 // ====== KNOWN CANDLESTICK PATTERNS adapted for Crazy Time context ======
@@ -233,9 +234,8 @@ function generateCandlePatterns(
   return patterns;
 }
 
-export default function MarketChartAnalysis({ allSpins }: MarketChartAnalysisProps) {
+export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChartAnalysisProps) {
   const [selectedSector, setSelectedSector] = useState<string>("1");
-  const [candleSize, setCandleSize] = useState<number>(10);
   const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
   const [showProbabilityTip, setShowProbabilityTip] = useState<string | null>(null);
 
@@ -444,23 +444,13 @@ export default function MarketChartAnalysis({ allSpins }: MarketChartAnalysisPro
           </div>
         </div>
 
-        {/* Candle Period */}
+        {/* Candle Period - read-only indicator */}
         <div className="col-span-1 md:col-span-3 flex flex-col gap-1.5 text-left">
           <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wide">Período por Vela</label>
-          <div className="grid grid-cols-4 gap-1 bg-[#0b0b10] p-1 border border-white/5 rounded-xl h-[38px] items-center">
-            {[5, 10, 15, 20].map((size) => (
-              <button
-                key={size}
-                onClick={() => setCandleSize(size)}
-                className={`h-full rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
-                  candleSize === size
-                    ? "bg-white/15 text-white"
-                    : "text-slate-500 hover:text-white"
-                }`}
-              >
-                {size}r
-              </button>
-            ))}
+          <div className="bg-[#0b0b10] border border-white/5 rounded-xl h-[38px] flex items-center px-4">
+            <span className="text-xs font-mono font-bold text-indigo-400">
+              {candleSize} rodadas por vela <span className="text-slate-500">(global)</span>
+            </span>
           </div>
         </div>
 
