@@ -56,8 +56,8 @@ export default function HistoryGrid({ spins, selectedFilter, onChangeFilter }: H
     return key;
   };
 
-  // Pagination parameters
-  const ITEMS_PER_PAGE = 14;
+  // Pagination parameters — 8 columns × 4 rows = 32 items
+  const ITEMS_PER_PAGE = 32;
   const totalPages = Math.ceil(filteredSpins.length / ITEMS_PER_PAGE);
   
   // Auto-adjust page if out of bounds
@@ -142,10 +142,10 @@ export default function HistoryGrid({ spins, selectedFilter, onChangeFilter }: H
         ) : (
           <motion.div 
             layout
-            className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-7 lg:grid-cols-14 gap-3 relative overflow-visible"
+            className="grid grid-cols-8 gap-2 relative overflow-visible"
           >
             <AnimatePresence mode="popLayout">
-              {displayedSpins.map((spin) => {
+              {displayedSpins.map((spin, idx) => {
                 const spec = getSectorDetail(spin.sectorKey);
                 const colorHex = spec?.color || "#d4a84c";
                 const isHovered = activeTooltipId === spin.id;
@@ -160,14 +160,20 @@ export default function HistoryGrid({ spins, selectedFilter, onChangeFilter }: H
                     layout
                     id={`chip-${spin.id}`}
                     key={spin.id}
-                    className="relative group cursor-help overflow-visible"
+                    className={`relative group cursor-help overflow-visible ${idx === 0 ? 'drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]' : ''}`}
                     onMouseEnter={() => setActiveTooltipId(spin.id)}
                     onMouseLeave={() => setActiveTooltipId(null)}
                     onClick={() => setActiveTooltipId(isHovered ? null : spin.id)}
                     initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
+                    animate={idx === 0 ? { 
+                      scale: 1, opacity: 1,
+                      boxShadow: ['0 0 0px rgba(255,255,255,0)', '0 0 10px rgba(255,255,255,0.25)', '0 0 0px rgba(255,255,255,0)']
+                    } : { scale: 1, opacity: 1 }}
+                    transition={idx === 0 ? { 
+                      duration: 0.2,
+                      boxShadow: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' }
+                    } : { duration: 0.2 }}
                     exit={{ scale: 0.9, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
                   >
                     {/* Corner Multiplier Badge for Numbers with Top Slot matched */}
                     {!spin.isBonus && spin.isTopSlotMatched && spin.topSlot?.multiplier && (
