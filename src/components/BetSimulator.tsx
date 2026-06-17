@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { ParsedSpin } from "../types";
-import { Play, Pause, RotateCcw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, ListOrdered, CheckSquare, Square, Zap, HelpCircle } from "lucide-react";
+import { Play, Pause, RotateCcw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, ListOrdered, CheckSquare, Square, Zap, HelpCircle, Send, Wifi } from "lucide-react";
 import { SECTOR_DEFINITIONS } from "../data";
+import { useSignalRelay, mapSectorsToSpots } from "../hooks/useSignalRelay";
 
 interface BetSimulatorProps {
   spins: ParsedSpin[]; // Raw spins array, index 0 is most recent
@@ -49,6 +50,19 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
   const [maxDrawdown, setMaxDrawdown] = useState<number>(0);
   const [peakBankroll, setPeakBankroll] = useState<number>(1000);
   const [isBankrollBroken, setIsBankrollBroken] = useState<boolean>(false);
+
+  // Signal relay for extension
+  const { extensionId, sendSignal, isConfigured } = useSignalRelay();
+  const [signalToast, setSignalToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [autoSendSimulator, setAutoSendSimulator] = useState<boolean>(() => {
+    try { return localStorage.getItem("bs_auto_send") === "true"; } catch { return false; }
+  });
+  useEffect(() => {
+    try {
+      if (autoSendSimulator) localStorage.setItem("bs_auto_send", "true");
+      else localStorage.removeItem("bs_auto_send");
+    } catch {}
+  }, [autoSendSimulator]);
 
   // Backtest specific states
   const [backtestChartHistory, setBacktestChartHistory] = useState<number[]>([]);
@@ -261,8 +275,13 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
       lastProcessedSpinId.current = latestSpin.id;
       // Process single live event
       runSimulationOnBatch([latestSpin], false);
+      // Auto-send signal if enabled
+      if (autoSendSimulator && selectedSectors.length > 0) {
+        const spots = mapSectorsToSpots(selectedSectors);
+        sendSignal({ spots, betAmount: baseBet });
+      }
     }
-  }, [spins, isLiveEnabled]);
+  }, [spins, isLiveEnabled, autoSendSimulator]);
 
   // Handle manual activation
   const handleToggleLive = () => {
@@ -271,6 +290,20 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
       lastProcessedSpinId.current = spins[0].id;
     }
     setIsLiveEnabled(!isLiveEnabled);
+  };
+
+  const handleSendSignal = async () => {
+    if (selectedSectors.length === 0) {
+      setSignalToast({ type: "error", message: "Selecione pelo menos 1 setor!" });
+      return;
+    }
+    const spots = mapSectorsToSpots(selectedSectors);
+    try {
+      await sendSignal({ spots, betAmount: baseBet });
+      setSignalToast({ type: "success", message: `📡 Sinal: ${selectedSectors.join(", ")}` });
+    } catch {
+      setSignalToast({ type: "error", message: "Erro ao enviar sinal" });
+    }
   };
 
   // Calculated variables
@@ -301,8 +334,33 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
             className="px-4 py-2 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/40 text-blue-300 font-extrabold text-xs rounded-xl hover:from-blue-500/30 hover:to-indigo-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
           >
             <ListOrdered size={14} />
-            Simular Histórico (100 Giros)
+            Simular Histórico ({spins.length} Giros)
           </button>
+
+          {/* Signal sending buttons */}
+          {isConfigured && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleSendSignal}
+                disabled={selectedSectors.length === 0}
+                className="px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Send size={11} />
+                📡 Enviar
+              </button>
+              <button
+                onClick={() => setAutoSendSimulator(!autoSendSimulator)}
+                className={`px-2.5 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                  autoSendSimulator
+                    ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.25)]"
+                    : "bg-white/[0.03] border-white/10 text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                <Wifi size={11} className={autoSendSimulator ? "animate-pulse" : ""} />
+                Auto
+              </button>
+            </div>
+          )}
 
           <button
             onClick={handleToggleLive}
@@ -335,6 +393,17 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
               O simulador esgotou o saldo fictício disponível para apostas (Saldo Atual aproximado: <strong className="text-white font-mono">R$ {formatBRL(currentBankroll)}</strong>). As progressões foram travadas para proteger o seu balanceamento face à oscilação extrema da mesa. Por favor, mude o tipo de progressão, diminua o valor da aposta básica ou pressione <strong className="text-white">"⚙️ Resetar"</strong> no painel de controle acima.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Signal Toast */}
+      {signalToast && (
+        <div className={`mb-4 px-4 py-2 rounded-xl text-xs font-mono font-bold border ${
+          signalToast.type === "success" 
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+        }`}>
+          {signalToast.message}
         </div>
       )}
 
@@ -620,10 +689,10 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
               <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
                 <div>
                   <h4 className="text-xs font-mono uppercase text-blue-400 font-bold">
-                    📈 Gráfico de Evolução de Saldo Fictício (Histórico 100 Giros)
+                    📈 Gráfico de Evolução de Saldo Fictício (Histórico {spins.length} Giros)
                   </h4>
                   <p className="text-[10px] text-slate-400">
-                    Veja as oscilações da sua banca após simular as últimas 100 rodadas reais que já saíram.
+                    Veja as oscilações da sua banca após simular as últimas {spins.length} rodadas reais que já saíram.
                   </p>
                 </div>
                 <div className={`text-xs px-2.5 py-1 rounded-lg font-bold border ${
@@ -744,7 +813,7 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
                   <DollarSign size={28} className="text-slate-600 mb-2" />
                   <p className="text-xs font-sans">Nenhuma aposta realizada ainda.</p>
                   <p className="text-[10px] text-slate-600 mt-1 max-w-sm">
-                    Simule os resultados que já saíram para saber se estaria no lucro! Clique no botão <span className="text-blue-300 font-bold">"Simular Histórico (100 Giros)"</span> no topo.
+                    Simule os resultados que já saíram para saber se estaria no lucro! Clique no botão <span className="text-blue-300 font-bold">"Simular Histórico ({spins.length} Giros)"</span> no topo.
                   </p>
                 </div>
               ) : (
