@@ -69,6 +69,37 @@ export function useSignalRelay() {
     localStorage.setItem(STORAGE_KEY_SERVER_URL, serverUrl);
   }, [serverUrl]);
 
+  // Auto-detect connected extensions: if current ID doesn't match any connected
+  // extension but there IS one connected, update automatically.
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch("/api/extensions");
+        const data = await res.json();
+        if (cancelled) return;
+        const connectedIds: string[] = (data.extensions || []).map(
+          (e: any) => e.extensionId
+        );
+        if (
+          connectedIds.length > 0 &&
+          (!extensionId || !connectedIds.includes(extensionId))
+        ) {
+          // Auto-fill with the first connected extension
+          setExtensionId(connectedIds[0]);
+        }
+      } catch {
+        // silently ignore network errors
+      }
+    };
+    check();
+    const interval = setInterval(check, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [extensionId]);
+
   const sendSignal = useCallback(
     async (payload: SignalPayload): Promise<SignalResult> => {
       const extId = payload.extensionId || extensionId;
