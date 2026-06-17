@@ -25,7 +25,7 @@ interface SignalHistoryEntry {
   chip: number | null;
   spots: string[];
   delay: number;
-  status: "sent" | "failed";
+  status: "sent" | "failed" | "queued";
   error?: string;
 }
 
@@ -196,7 +196,10 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
     res.json({ extensions: list, count: list.length });
   });
 
-  // Send a signal to a specific extension
+  // Queue of pending signals per extension (dedup: latest only)
+  const pendingSignals = new Map<string, any>();
+
+  // Send a signal to a specific extension (queues it until betting opens)
   app.post("/api/send-signal", (req, res) => {
     const { extensionId, chip, betAmount, spots, delay, repeat, gales } = req.body;
 
@@ -214,37 +217,51 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
       timestamp: new Date().toISOString()
     };
 
-    const sent = sendSignalToExtension(extensionId, signal);
+    // Check if extension is connected
+    const ext = registeredExtensions.get(extensionId);
+    const isConnected = ext && ext.ws.readyState === WebSocket.OPEN;
 
-    if (sent) {
-      console.log(`📡 Signal sent to extension ${extensionId}:`, JSON.stringify(signal));
-      addSignalHistory({
-        id: Date.now().toString(36),
-        timestamp: new Date().toISOString(),
-        extensionId,
-        chip: signal.chip,
-        spots: signal.spots,
-        delay: signal.delay,
-        status: "sent"
-      });
-      res.json({ success: true, message: "Signal sent to extension", extensionId, signal });
-    } else {
-      addSignalHistory({
-        id: Date.now().toString(36),
-        timestamp: new Date().toISOString(),
-        extensionId,
-        chip: signal.chip,
-        spots: signal.spots,
-        delay: signal.delay,
-        status: "failed",
-        error: "Extension not connected"
-      });
-      res.status(404).json({ 
-        success: false, 
-        error: `Extension ${extensionId} not connected. Connect the extension first.`,
-        connectedExtensions: Array.from(registeredExtensions.keys())
-      });
+    // Check if betting is currently open
+    const state = bettingOpenState.get(extensionId);
+    const bettingIsOpen = state?.open === true;
+
+    if (isConnected && bettingIsOpen) {
+      // Betting is open AND extension connected → send immediately
+      const sent = sendSignalToExtension(extensionId, signal);
+      if (sent) {
+        console.log(`📡 Signal sent immediately to ${extensionId}:`, JSON.stringify(signal));
+        addSignalHistory({ id: Date.now().toString(36), timestamp: new Date().toISOString(), extensionId, chip: signal.chip, spots: signal.spots, delay: signal.delay, status: "sent" });
+        return res.json({ success: true, message: "Signal sent to extension", extensionId, signal, sent: true, queue: false });
+      }
     }
+
+    if (isConnected && !bettingIsOpen) {
+      // Extension connected but betting closed → queue it
+      pendingSignals.set(extensionId, signal);
+      console.log(`📡 Signal queued for ${extensionId} (betting closed):`, JSON.stringify(signal));
+      // Notify extension about queued signal
+      sendSignalToExtension(extensionId, { type: "signalQueued", ...signal });
+      addSignalHistory({ id: Date.now().toString(36), timestamp: new Date().toISOString(), extensionId, chip: signal.chip, spots: signal.spots, delay: signal.delay, status: "queued" });
+      return res.json({ success: true, message: "Signal queued — esperando abertura das apostas", extensionId, signal, sent: false, queue: true });
+    }
+
+    // Extension not connected at all
+    addSignalHistory({ id: Date.now().toString(36), timestamp: new Date().toISOString(), extensionId, chip: signal.chip, spots: signal.spots, delay: signal.delay, status: "failed", error: "Extension not connected" });
+    res.status(404).json({ 
+      success: false, 
+      error: `Extension ${extensionId} not connected. Abra a extensão e conecte primeiro.`,
+      connectedExtensions: Array.from(registeredExtensions.keys())
+    });
+  });
+
+  // Check queued signal for an extension
+  app.get("/api/queued-signal", (req, res) => {
+    const { extensionId } = req.query;
+    if (!extensionId || typeof extensionId !== "string") {
+      return res.json({ queued: false, signal: null, queue: Array.from(pendingSignals.entries()).map(([id, sig]) => ({ extensionId: id, spots: sig.spots, betAmount: sig.betAmount, timestamp: sig.timestamp })) });
+    }
+    const queued = pendingSignals.get(extensionId);
+    res.json({ queued: !!queued, signal: queued || null });
   });
 
   // Signal history
@@ -319,6 +336,14 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
             open: true,
             since: new Date().toISOString()
           });
+          // Flush any queued signal for this extension
+          const queued = pendingSignals.get(currentExtensionId);
+          if (queued) {
+            pendingSignals.delete(currentExtensionId);
+            console.log(`📡 Sending queued signal to ${currentExtensionId}:`, JSON.stringify(queued));
+            // Send the queued signal
+            ws.send(JSON.stringify({ type: "signal", ...queued }));
+          }
         } else if (msg.type === "bettingClosed" && currentExtensionId) {
           console.log(`🔒 Betting closed for extension ${currentExtensionId}`);
           bettingOpenState.set(currentExtensionId, {

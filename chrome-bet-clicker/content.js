@@ -67,6 +67,9 @@ function getTimerText() {
 }
 
 function parseTimerCount(text) {
+  // Check if betting is explicitly OPEN (FAÇA SUAS APOSTAS)
+  if (/faça\s+suas\s+apostas/i.test(text)) return 5;
+  // Check countdown format: "APOSTAS FECHAM EM BREVE 5"
   const match = text.match(/APOSTAS FECHAM EM BREVE\s+(\d+)/i);
   if (!match) return -1;
   return parseInt(match[1], 10);
@@ -81,8 +84,8 @@ function checkTimer() {
 
   const wasOpen = bettingOpen;
 
-  // Betting is open when count is 5 (just reset)
-  if (count === 5 && !wasOpen) {
+  // Betting is open when count is 5 (just reset) OR when "FAÇA SUAS APOSTAS" is showing
+  if ((count === 5 || /faça\s+suas\s+apostas/i.test(text)) && !wasOpen) {
     bettingOpen = true;
     console.log('[SR] ⏰ Apostas abertas!');
     chrome.runtime.sendMessage({ action: 'bettingOpen' }).catch(() => {});
@@ -96,7 +99,7 @@ function checkTimer() {
     }
   }
 
-  // Betting closed when count is 0
+  // Betting closed when count is 0 or text no longer matches open
   if (count === 0) {
     bettingOpen = false;
   }
