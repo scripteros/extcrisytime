@@ -325,6 +325,109 @@ export default function SectorAnalysis({ allSpins }: SectorAnalysisProps) {
         </div>
       </div>
 
+      {/* ====== MELHORES JOGADAS AGORA ====== */}
+      {(() => {
+        const agora = new Date().getHours();
+        // Build ranking of all sectors for current hour
+        const currentHourSectors = SECTOR_DEFINITIONS.map(sector => {
+          let appearances = 0, total = 0, multipliers: number[] = [];
+          chronologicalSpins.forEach(spin => {
+            const h = new Date(spin.timestamp).getHours();
+            if (h === agora) {
+              total++;
+              if (spin.sectorKey === sector.key) {
+                appearances++;
+                if (spin.maxMultiplier > 0) multipliers.push(spin.maxMultiplier);
+              }
+            }
+          });
+          const hitRate = total > 0 ? Math.round((appearances / total) * 100) : 0;
+          const avgMult = multipliers.length > 0 ? Math.round(multipliers.reduce((a,b) => a+b,0) / multipliers.length) : 0;
+          const maxMult = multipliers.length > 0 ? Math.max(...multipliers) : 0;
+          return { ...sector, appearances, total, hitRate, avgMult, maxMult };
+        }).filter(s => s.total >= 3).sort((a,b) => b.hitRate - a.hitRate);
+
+        const top3 = currentHourSectors.slice(0, 3);
+        const worstTime = currentHourSectors.length > 0 ? currentHourSectors[currentHourSectors.length - 1] : null;
+
+        return (
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03] p-5 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock size={16} className="text-indigo-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-400">
+                🎯 Melhores Jogadas Agora — {String(agora).padStart(2,"0")}h
+              </span>
+            </div>
+
+            {currentHourSectors.length === 0 ? (
+              <p className="text-xs text-slate-500">Dados insuficientes para o horário atual. Continue jogando para gerar estatísticas.</p>
+            ) : (
+              <>
+                {/* Top 3 Picks */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                  {top3.map((s, idx) => {
+                    const colors = ["from-emerald-500/20 to-emerald-500/5 border-emerald-500/30", "from-blue-500/20 to-blue-500/5 border-blue-500/30", "from-amber-500/20 to-amber-500/5 border-amber-500/30"];
+                    const badges = ["🥇", "🥈", "🥉"];
+                    const label = selectedSector === s.key ? "✅ SELECIONADO" : `${badges[idx]} Top ${idx+1}`;
+                    return (
+                      <button
+                        key={s.key}
+                        onClick={() => { setSelectedSector(s.key); setFilterBonus(false); }}
+                        className={`rounded-xl border bg-gradient-to-br ${colors[idx]} p-3.5 text-left transition-all hover:scale-[1.02] cursor-pointer ${selectedSector === s.key ? "ring-2 ring-[#d4a84c]" : ""}`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: s.color }}>{label}</span>
+                          <span className="text-xs font-black" style={{ color: s.color }}>{s.displayName}</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg font-black text-white">{s.hitRate}%</span>
+                          <span className="text-[9px] text-slate-500">{s.appearances}x em {s.total}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Zap size={9} className="text-amber-400" />
+                          <span className="text-[8px] text-slate-400">Mult médio: {s.avgMult}x</span>
+                          {s.maxMult > 5 && <span className="text-[8px] text-rose-400">🔥 máx {s.maxMult}x</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* All sectors ranked */}
+                <details className="text-xs">
+                  <summary className="text-indigo-300 cursor-pointer hover:text-indigo-200 font-semibold">Ver ranking completo de todos os setores</summary>
+                  <div className="mt-3 space-y-1">
+                    {currentHourSectors.map(s => (
+                      <div key={s.key} className={`flex items-center justify-between px-3 py-1.5 rounded-lg ${selectedSector === s.key ? "bg-white/10" : "hover:bg-white/5"} transition-all cursor-pointer`} onClick={() => { setSelectedSector(s.key); setFilterBonus(false); }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[9px] font-bold w-6 text-right text-slate-500">#{currentHourSectors.indexOf(s)+1}</span>
+                          <span className="text-[10px] font-bold" style={{ color: s.color }}>{s.displayName}</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="flex-1 bg-white/5 rounded-full h-1.5 w-16 overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: s.hitRate + "%", background: selectedSector === s.key ? "#d4a84c" : s.color }} />
+                          </div>
+                          <span className="text-[10px] font-bold text-white w-8 text-right">{s.hitRate}%</span>
+                          <span className="text-[8px] text-slate-500 w-12 text-right">{s.appearances}/{s.total}</span>
+                          {s.avgMult > 0 && <span className="text-[8px] text-amber-400">{s.avgMult}x</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+
+                {worstTime && (
+                  <div className="mt-3 pt-3 border-t border-white/5 text-[10px] text-rose-400 flex items-center gap-1.5">
+                    <AlertTriangle size={10} />
+                    ⚠️ Evitar {worstTime.displayName} agora ({worstTime.hitRate}% de acerto)
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ====== GRID: 2 cols ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
