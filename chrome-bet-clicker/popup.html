@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signal Relay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 300px;
+      background: #0f172a;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+    }
+    .container { padding: 16px; }
+    .header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+    }
+    .logo {
+      font-weight: 800; font-size: 15px; text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .logo span { color: #22c55e; }
+    .badge {
+      font-size: 9px; padding: 2px 6px; border-radius: 4px;
+      background: #1e293b; color: #64748b; border: 1px solid #334155;
+    }
+
+    .label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: #64748b; font-weight: 600; margin-bottom: 6px; display: block;
+    }
+
+    .id-box {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 12px;
+    }
+    .id-box input {
+      flex: 1; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; padding: 8px 10px; color: #22c55e;
+      font-family: 'Courier New', monospace; font-size: 11px;
+      outline: none; cursor: text;
+    }
+    .id-box button {
+      background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+      padding: 8px 10px; color: #94a3b8; cursor: pointer; transition: 0.2s;
+      font-size: 14px;
+    }
+    .id-box button:hover { background: #334155; color: #f1f5f9; }
+
+    .status-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; background: #1e293b; border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .status-info { display: flex; align-items: center; gap: 8px; }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ef4444; flex-shrink: 0;
+    }
+    .dot.online { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.4); }
+    .dot.offline { background: #ef4444; }
+    .status-text { font-size: 12px; color: #94a3b8; }
+
+    .toggle-label {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      font-size: 12px; color: #94a3b8; user-select: none;
+    }
+    .toggle-label input { display: none; }
+    .toggle-track {
+      width: 36px; height: 20px; background: #334155; border-radius: 10px;
+      position: relative; transition: 0.2s;
+    }
+    .toggle-label input:checked + .toggle-track { background: #22c55e; }
+    .toggle-knob {
+      width: 16px; height: 16px; background: #f1f5f9; border-radius: 50%;
+      position: absolute; top: 2px; left: 2px; transition: 0.2s;
+    }
+    .toggle-label input:checked + .toggle-track .toggle-knob {
+      left: 18px;
+    }
+
+    .signal-indicator {
+      margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+      background: #1e293b; border: 1px solid #334155;
+      display: none; align-items: center; gap: 8px;
+    }
+    .signal-indicator.show {
+      display: flex;
+      animation: pulse 0.3s ease;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .signal-indicator .icon {
+      font-size: 20px; animation: blink 0.6s ease infinite alternate;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      100% { opacity: 0.3; }
+    }
+    .signal-indicator .msg { flex: 1; font-size: 11px; color: #94a3b8; }
+    .signal-indicator .msg strong { color: #f1f5f9; display: block; margin-bottom: 2px; }
+
+    .footer {
+      margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b;
+      font-size: 10px; color: #475569; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">📡 Signal <span>Relay</span></div>
+      <span class="badge">v1.0</span>
+    </div>
+
+    <label class="label">ID da Extensão</label>
+    <div class="id-box">
+      <input type="text" id="extensionId" readonly placeholder="Carregando...">
+      <button id="btnCopy" title="Copiar ID">📋</button>
+    </div>
+
+    <div class="status-row">
+      <div class="status-info">
+        <span class="dot offline" id="statusDot"></span>
+        <span class="status-text" id="statusText">Desconectado</span>
+      </div>
+      <label class="toggle-label">
+        <input type="checkbox" id="toggleWs">
+        <div class="toggle-track">
+          <div class="toggle-knob"></div>
+        </div>
+      </label>
+    </div>
+
+    <div class="signal-indicator" id="signalIndicator">
+      <div class="icon">⚡</div>
+      <div class="msg">
+        <strong id="signalTitle">Sinal Recebido!</strong>
+        <span id="signalDesc">Aguardando...</span>
+      </div>
+    </div>
+
+    <div class="footer">Conectado ao servidor de sinais</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
