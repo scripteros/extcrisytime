@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-noir-950: #0a0a0f;
+  --color-noir-900: #12121a;
+  --color-noir-850: #161622;
+  --color-noir-800: #1a1a26;
+  
+  --color-casino-gold: #d4a84c;
+  --color-casino-magenta: #ec4899;
+  
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-spin-slow: spin 20s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+}
+
+/* Custom visual utilities for Casino Noir */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-noir-950);
+  background-image: 
+    radial-gradient(circle at -10% -10%, rgba(212, 168, 76, 0.06) 0%, transparent 55%),
+    radial-gradient(circle at 110% 110%, rgba(236, 72, 153, 0.06) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(10, 10, 15, 1) 0%, rgba(6, 6, 9, 1) 100%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+  color: #f3f4f6;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #252538;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #383856;
+}
+
+/* Glassmorphism card - Frosted Glass Theme Refinements */
+.glass-panel {
+  background: rgba(18, 18, 26, 0.6);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.7),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-panel-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.8),
+    0 0 25px 0 rgba(212, 168, 76, 0.03),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Custom shine effects */
+.gold-glow {
+  text-shadow: 0 0 10px rgba(212, 168, 76, 0.3), 0 0 20px rgba(212, 168, 76, 0.2);
+}
+
+.magenta-glow {
+  text-shadow: 0 0 10px rgba(236, 72, 153, 0.3), 0 0 20px rgba(236, 72, 153, 0.2);
+}
+
+/* Custom radial animated backdrops */
+.bg-radial-gradient-animated {
+  background: radial-gradient(circle at center, rgba(212, 168, 76, 0.05) 0%, transparent 60%);
+  animation: pulse 6s ease-in-out infinite alternate;
+}
+
+.bg-radial-magenta-animated {
+  background: radial-gradient(circle at center, rgba(236, 72, 153, 0.05) 0%, transparent 60%);
+  animation: pulse 8s ease-in-out infinite alternate;
+}

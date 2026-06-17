@@ -183,9 +183,12 @@ async function testSpot10() { await spotClick({ selector: '.gAopRU', index: 5 },
 async function testCashHunt() { await spotClick({ selector: '.gAopRU', index: 6 }, 'Cash Hunt'); }
 async function testCrazyTime() { await spotClick({ selector: '.gAopRU', index: 7 }, 'Crazy Time'); }
 
-async function testChip() {
-  await spotClick({ selector: 'circle.Pzxygk', index: 0 }, 'Ficha R$ 0,50 (1ª)');
-}
+async function testChip050() { await spotClick({ selector: '[data-role="chip"][data-value="0.5"]' }, 'Ficha R$ 0,50'); }
+async function testChip1() { await spotClick({ selector: '[data-role="chip"][data-value="1"]' }, 'Ficha R$ 1'); }
+async function testChip250() { await spotClick({ selector: '[data-role="chip"][data-value="2.5"]' }, 'Ficha R$ 2,50'); }
+async function testChip5() { await spotClick({ selector: '[data-role="chip"][data-value="5"]' }, 'Ficha R$ 5'); }
+async function testChip10() { await spotClick({ selector: '[data-role="chip"][data-value="10"]' }, 'Ficha R$ 10'); }
+async function testChip25() { await spotClick({ selector: '[data-role="chip"][data-value="25"]' }, 'Ficha R$ 25'); }
 
 async function testBetOnAll() {
   await spotClick({ selector: '[data-role="bet-on-all-button"]' }, 'Apostar em Todos');
@@ -314,7 +317,12 @@ $('testSpot5').addEventListener('click', testSpot5);
 $('testSpot10').addEventListener('click', testSpot10);
 $('testCashHunt').addEventListener('click', testCashHunt);
 $('testCrazyTime').addEventListener('click', testCrazyTime);
-$('testChip').addEventListener('click', testChip);
+$('testChip050').addEventListener('click', testChip050);
+$('testChip1').addEventListener('click', testChip1);
+$('testChip250').addEventListener('click', testChip250);
+$('testChip5').addEventListener('click', testChip5);
+$('testChip10').addEventListener('click', testChip10);
+$('testChip25').addEventListener('click', testChip25);
 $('testBetOnAll').addEventListener('click', testBetOnAll);
 $('testTimer').addEventListener('click', testTimer);
 $('testGale').addEventListener('click', testGale);

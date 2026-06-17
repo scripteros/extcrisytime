@@ -103,40 +103,6 @@
     .signal-indicator .msg { flex: 1; font-size: 11px; color: #94a3b8; }
     .signal-indicator .msg strong { color: #f1f5f9; display: block; margin-bottom: 2px; }
 
-    /* Test Buttons */
-    .test-section { margin-top: 12px; border-top: 1px solid #1e293b; padding-top: 10px; }
-    .test-label {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-      color: #64748b; font-weight: 600; margin-bottom: 6px; display: block;
-    }
-    .test-label small { color: #475569; font-weight: 400; }
-    .test-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
-    .test-btn {
-      flex: 1; min-width: 72px; padding: 6px 6px; border-radius: 6px;
-      border: 1px solid #334155; background: #1e293b; color: #94a3b8;
-      font-size: 10px; cursor: pointer; transition: 0.2s; text-align: center;
-      font-weight: 600;
-    }
-    .test-btn:hover { background: #334155; color: #f1f5f9; border-color: #22c55e; }
-    .test-btn:active { transform: scale(0.96); }
-    .test-btn.spot1 { border-color: #3b8276; color: #5eead4; }
-    .test-btn.spot2 { border-color: #6366f1; color: #a5b4fc; }
-    .test-btn.spot5 { border-color: #be185d; color: #f9a8d4; }
-    .test-btn.spot10 { border-color: #6b21a8; color: #d8b4fe; }
-    .test-btn.chip { border-color: #92400e; color: #fbbf24; }
-    .test-btn.status { border-color: #334155; color: #94a3b8; }
-    .test-btn.gales { border-color: #6d28d9; color: #c084fc; }
-    .test-btn.signal-link { border-color: #047857; color: #6ee7b7; }
-    .test-result {
-      margin-top: 6px; padding: 6px 8px; border-radius: 6px;
-      background: #1e293b; border: 1px solid #334155; font-size: 10px;
-      color: #94a3b8; font-family: monospace; min-height: 18px;
-      display: none; white-space: pre-wrap;
-    }
-    .test-result.show { display: block; }
-    .test-result.success { border-color: #22c55e; color: #4ade80; }
-    .test-result.error { border-color: #ef4444; color: #f87171; }
-
     .footer {
       margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b;
       font-size: 10px; color: #475569; text-align: center;
@@ -175,38 +141,6 @@
         <strong id="signalTitle">Sinal Recebido!</strong>
         <span id="signalDesc">Aguardando...</span>
       </div>
-    </div>
-
-    <!-- Test Buttons -->
-    <div class="test-section">
-      <label class="test-label">🧪 Testar Cliques <small>(.gAopRU[n])</small></label>
-      <div class="test-buttons">
-        <button class="test-btn spot1" id="testSpot1">🎯 1</button>
-        <button class="test-btn spot2" id="testSpot2">🎯 2</button>
-        <button class="test-btn" id="testCoinFlip">🪙 CF</button>
-        <button class="test-btn" id="testPachinko">🎰 PA</button>
-        <button class="test-btn spot5" id="testSpot5">🎯 5</button>
-        <button class="test-btn spot10" id="testSpot10">🔟 10</button>
-        <button class="test-btn" id="testCashHunt">🎯 CH</button>
-        <button class="test-btn gales" id="testCrazyTime">🎡 CT</button>
-      </div>
-      <label class="test-label" style="margin-top:8px">💰 Fichas <small>(circle.Pzxygk[n])</small></label>
-      <div class="test-buttons">
-        <button class="test-btn chip" id="testChip050">0,50</button>
-        <button class="test-btn chip" id="testChip1">1</button>
-        <button class="test-btn chip" id="testChip250">2,50</button>
-        <button class="test-btn chip" id="testChip5">5</button>
-        <button class="test-btn chip" id="testChip10">10</button>
-        <button class="test-btn chip" id="testChip25">25</button>
-      </div>
-      <div class="test-buttons" style="margin-top:4px">
-        <button class="test-btn" id="testBetOnAll">📋 Todos</button>
-        <button class="test-btn status" id="testTimer">⏱ Timer</button>
-        <button class="test-btn gales" id="testGale">🔄 Gale</button>
-        <button class="test-btn signal-link" id="testSignalLink">📡 Sinal App</button>
-        <button class="test-btn status" id="testDiag">🔍 Diag</button>
-      </div>
-      <div class="test-result" id="testResult"></div>
     </div>
 
     <div class="footer">Conectado ao servidor de sinais</div>

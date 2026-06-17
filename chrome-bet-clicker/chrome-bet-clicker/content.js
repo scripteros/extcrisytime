@@ -1,8 +1,5 @@
 // ==================== Content Script ====================
 
-if (!window.srContentScriptLoaded) {
-window.srContentScriptLoaded = true;
-
 let stopRequested = false;
 let pendingSignal = null;
 let bettingOpen = false;
@@ -25,33 +22,17 @@ function findElements(selector) {
 }
 
 function clickElement(el) {
-  try { el.click(); } catch (e) {}
-  
-  const rect = el.getBoundingClientRect();
-  const x = rect.left + rect.width / 2;
-  const y = rect.top + rect.height / 2;
-
-  const target = document.elementFromPoint(x, y) || el;
-
-  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
-    try {
-      let event;
-      if (type.startsWith('pointer')) {
-        event = new PointerEvent(type, {
-          bubbles: true, cancelable: true, view: window,
-          button: 0, buttons: 1, pointerId: 1, pointerType: 'mouse', isPrimary: true,
-          clientX: x, clientY: y
-        });
-      } else {
-        event = new MouseEvent(type, {
-          bubbles: true, cancelable: true, view: window,
-          button: 0, buttons: 1,
-          clientX: x, clientY: y
-        });
-      }
-      target.dispatchEvent(event);
-    } catch (e) {}
-  });
+  try { el.click(); }
+  catch (e) {
+    ['mouseenter', 'mousedown', 'mouseup', 'click'].forEach(type => {
+      el.dispatchEvent(new MouseEvent(type, {
+        bubbles: true, cancelable: true, view: window,
+        button: 0, buttons: 1,
+        clientX: el.getBoundingClientRect().left + 10,
+        clientY: el.getBoundingClientRect().top + 10
+      }));
+    });
+  }
 }
 
 function scrollIntoView(el) {
@@ -120,57 +101,41 @@ function stopTimerWatcher() {
 async function executeClickSequence(signal) {
   // 1. Click chip value
   if (signal.chip) {
-    var chipEls = findElements(`[data-role="chip"][data-value="${signal.chip}"]`);
-    if (chipEls.length === 0) {
-      var chipIndexMap = { '0.5': 0, '0,50': 0, '1': 1, '2.5': 2, '2,50': 2, '5': 3, '10': 4, '25': 5 };
-      var idx = chipIndexMap[String(signal.chip)] || 0;
-      chipEls = findElements('.ftNWJU.CxpIc9');
-      if (idx < chipEls.length) chipEls = [chipEls[idx]];
-    }
-    for (var _i = 0; _i < chipEls.length; _i++) {
+    const chipEls = findElements(`[data-role="chip"][data-value="${signal.chip}"]`);
+    for (const el of chipEls) {
       try {
-        scrollIntoView(chipEls[_i]);
-        await new Promise(function(r) { return setTimeout(r, 50 + Math.random() * 50); });
-        clickElement(chipEls[_i]);
-      } catch (e) {}
+        scrollIntoView(el);
+        await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
+        clickElement(el);
+      } catch {}
     }
-    await new Promise(function(r) { return setTimeout(r, signal.delay || 300); });
+    await new Promise(r => setTimeout(r, signal.delay || 300));
   }
 
   // 2. Click each spot
   if (signal.spots && signal.spots.length > 0) {
     for (const spotLabel of signal.spots) {
-      // Map spot label to .gAopRU index
-      var gAopIndexMap = {
-        'Spot 1': 0, '1': 0,
-        'Spot 2': 1, '2': 1,
-        'Coin Flip': 2, 'coinflip': 2,
-        'Pachinko': 3, 'pachinko': 3,
-        'Spot 5': 4, '5': 4,
-        'Spot 10': 5, '10': 5,
-        'Cash Hunt': 6, 'cashhunt': 6,
-        'Crazy Time': 7, 'crazytime': 7,
+      // Map spot label to data-role selector
+      const spotMap = {
+        'Spot 1': 'bet-spot-1',
+        'Spot 2': 'bet-spot-2',
+        'Spot 5': 'bet-spot-5',
+        'Spot 10': 'bet-spot-10',
+        'Bônus Verde': 'bet-spot-b1',
+        'Bônus Rosa': 'bet-spot-b2',
+        'Bônus Azul': 'bet-spot-b3',
+        'Bônus Vermelho': 'bet-spot-b4',
       };
-      const idx = gAopIndexMap[spotLabel];
+      const role = spotMap[spotLabel] || spotLabel;
+      const selector = `[data-role="${role}"]`;
+      const els = findElements(selector);
       
-      if (idx !== undefined) {
-        // Use .gAopRU with index (confirmed working)
-        const els = findElements('.gAopRU');
-        const el = els[idx];
-        if (el) {
+      for (const el of els) {
+        try {
           scrollIntoView(el);
           await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
           clickElement(el);
-        }
-      } else {
-        // Fallback: use data-role for bonus spots etc
-        const selector = `[data-role="${spotLabel}"]`;
-        const els = findElements(selector);
-        for (const el of els) {
-          scrollIntoView(el);
-          await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-          clickElement(el);
-        }
+        } catch {}
       }
       await new Promise(r => setTimeout(r, signal.delay || 300));
     }
@@ -210,7 +175,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'clickElements':
-      clickElementsFunction(message.selector, message.delay || 300, message.repeat || 1, message.index)
+      clickElementsFunction(message.selector, message.delay || 300, message.repeat || 1)
         .then(result => sendResponse(result))
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
@@ -228,43 +193,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Legacy click function
-async function clickElementsFunction(selector, delay, repeat, index = null) {
+async function clickElementsFunction(selector, delay, repeat) {
   let clicked = 0;
   const errors = [];
   for (let r = 0; r < (repeat || 1) && !stopRequested; r++) {
-    let elements = findElements(selector);
-    
-    // If index is specified, click only that element
-    if (index !== null && typeof index === 'number') {
-      if (index < elements.length && elements[index]) {
-        const el = elements[index];
-        if (el.offsetParent !== null || el.getClientRects().length > 0) {
-          try {
-            scrollIntoView(el);
-            await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-            clickElement(el);
-            clicked++;
-            return { success: true, clicked, errors };
-          } catch (e) { errors.push(`Erro ao clicar [${index}]: ${e.message}`); }
-        } else {
-          errors.push(`Elemento [${index}] não está visível`);
-        }
-      } else {
-        errors.push(`Índice ${index} inválido — apenas ${elements.length} elemento(s) encontrado(s)`);
-      }
-      break;
-    }
-    
-    // Normal: click all without visibility check to bypass svg rendering issues
-    if (elements.length === 0) { errors.push('Nenhum elemento encontrado'); break; }
-    for (let i = 0; i < elements.length && !window.stopRequested; i++) {
+    const elements = findElements(selector);
+    const visible = elements.filter(el => el.offsetParent !== null || el.getClientRects().length > 0);
+    if (visible.length === 0) { errors.push('Nenhum elemento visível'); break; }
+    for (let i = 0; i < visible.length && !stopRequested; i++) {
       try {
-        scrollIntoView(elements[i]);
+        scrollIntoView(visible[i]);
         await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-        clickElement(elements[i]);
+        clickElement(visible[i]);
         clicked++;
       } catch (e) { errors.push(`Erro: ${e.message}`); }
-      if (i < elements.length - 1 && delay > 0) await new Promise(r => setTimeout(r, delay));
+      if (i < visible.length - 1 && delay > 0) await new Promise(r => setTimeout(r, delay));
     }
   }
   stopRequested = false;
@@ -303,13 +246,3 @@ function createSignalNotification(title, desc) {
 
 startTimerWatcher();
 chrome.runtime.sendMessage({ action: 'contentScriptReady' }).catch(() => {});
-
-window.clickElementsFunction = clickElementsFunction;
-window.getTimerText = getTimerText;
-window.parseTimerCount = parseTimerCount;
-window.executeClickSequence = executeClickSequence;
-window.createSignalNotification = createSignalNotification;
-Object.defineProperty(window, 'pendingSignal', { get: () => pendingSignal, set: (v) => pendingSignal = v });
-Object.defineProperty(window, 'bettingOpen', { get: () => bettingOpen, set: (v) => bettingOpen = v });
-
-}
