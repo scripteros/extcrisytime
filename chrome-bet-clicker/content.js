@@ -1,5 +1,8 @@
 // ==================== Content Script ====================
 
+if (!window.srContentScriptLoaded) {
+window.srContentScriptLoaded = true;
+
 let stopRequested = false;
 let pendingSignal = null;
 let bettingOpen = false;
@@ -22,17 +25,33 @@ function findElements(selector) {
 }
 
 function clickElement(el) {
-  try { el.click(); }
-  catch (e) {
-    ['mouseenter', 'mousedown', 'mouseup', 'click'].forEach(type => {
-      el.dispatchEvent(new MouseEvent(type, {
-        bubbles: true, cancelable: true, view: window,
-        button: 0, buttons: 1,
-        clientX: el.getBoundingClientRect().left + 10,
-        clientY: el.getBoundingClientRect().top + 10
-      }));
-    });
-  }
+  try { el.click(); } catch (e) {}
+  
+  const rect = el.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+
+  const target = document.elementFromPoint(x, y) || el;
+
+  ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
+    try {
+      let event;
+      if (type.startsWith('pointer')) {
+        event = new PointerEvent(type, {
+          bubbles: true, cancelable: true, view: window,
+          button: 0, buttons: 1, pointerId: 1, pointerType: 'mouse', isPrimary: true,
+          clientX: x, clientY: y
+        });
+      } else {
+        event = new MouseEvent(type, {
+          bubbles: true, cancelable: true, view: window,
+          button: 0, buttons: 1,
+          clientX: x, clientY: y
+        });
+      }
+      target.dispatchEvent(event);
+    } catch (e) {}
+  });
 }
 
 function scrollIntoView(el) {
@@ -101,13 +120,11 @@ function stopTimerWatcher() {
 async function executeClickSequence(signal) {
   // 1. Click chip value
   if (signal.chip) {
-    // Try data-role first, fallback to .ftNWJU.CxpIc9 with index
-    var chipEls = findElements('[data-role="chip"][data-value="' + signal.chip + '"]');
+    var chipEls = findElements(`[data-role="chip"][data-value="${signal.chip}"]`);
     if (chipEls.length === 0) {
-      // Map chip value to index in .ftNWJU.CxpIc9 list
       var chipIndexMap = { '0.5': 0, '0,50': 0, '1': 1, '2.5': 2, '2,50': 2, '5': 3, '10': 4, '25': 5 };
       var idx = chipIndexMap[String(signal.chip)] || 0;
-      chipEls = findElements('.ftNWJU.CxpIc9');
+      chipEls = findElements('circle.Pzxygk');
       if (idx < chipEls.length) chipEls = [chipEls[idx]];
     }
     for (var _i = 0; _i < chipEls.length; _i++) {
@@ -127,8 +144,12 @@ async function executeClickSequence(signal) {
       var gAopIndexMap = {
         'Spot 1': 0, '1': 0,
         'Spot 2': 1, '2': 1,
-        'Spot 5': 2, '5': 2,
-        'Spot 10': 3, '10': 3,
+        'Coin Flip': 2, 'coinflip': 2,
+        'Pachinko': 3, 'pachinko': 3,
+        'Spot 5': 4, '5': 4,
+        'Spot 10': 5, '10': 5,
+        'Cash Hunt': 6, 'cashhunt': 6,
+        'Crazy Time': 7, 'crazytime': 7,
       };
       const idx = gAopIndexMap[spotLabel];
       
@@ -234,17 +255,16 @@ async function clickElementsFunction(selector, delay, repeat, index = null) {
       break;
     }
     
-    // Normal: click all visible
-    const visible = elements.filter(el => el.offsetParent !== null || el.getClientRects().length > 0);
-    if (visible.length === 0) { errors.push('Nenhum elemento visível'); break; }
-    for (let i = 0; i < visible.length && !stopRequested; i++) {
+    // Normal: click all without visibility check to bypass svg rendering issues
+    if (elements.length === 0) { errors.push('Nenhum elemento encontrado'); break; }
+    for (let i = 0; i < elements.length && !window.stopRequested; i++) {
       try {
-        scrollIntoView(visible[i]);
+        scrollIntoView(elements[i]);
         await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-        clickElement(visible[i]);
+        clickElement(elements[i]);
         clicked++;
       } catch (e) { errors.push(`Erro: ${e.message}`); }
-      if (i < visible.length - 1 && delay > 0) await new Promise(r => setTimeout(r, delay));
+      if (i < elements.length - 1 && delay > 0) await new Promise(r => setTimeout(r, delay));
     }
   }
   stopRequested = false;
@@ -283,3 +303,13 @@ function createSignalNotification(title, desc) {
 
 startTimerWatcher();
 chrome.runtime.sendMessage({ action: 'contentScriptReady' }).catch(() => {});
+
+window.clickElementsFunction = clickElementsFunction;
+window.getTimerText = getTimerText;
+window.parseTimerCount = parseTimerCount;
+window.executeClickSequence = executeClickSequence;
+window.createSignalNotification = createSignalNotification;
+Object.defineProperty(window, 'pendingSignal', { get: () => pendingSignal, set: (v) => pendingSignal = v });
+Object.defineProperty(window, 'bettingOpen', { get: () => bettingOpen, set: (v) => bettingOpen = v });
+
+}
