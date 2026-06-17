@@ -9,7 +9,7 @@ let wsExtensionId = null;
 async function getWsConfig() {
   const config = await chrome.storage.local.get(['wsServerUrl', 'wsExtensionId']);
   return {
-    serverUrl: config.wsServerUrl || 'ws://servico.mobap.com.br:3005',
+    serverUrl: config.wsServerUrl || 'wss://roletas.mobap.com.br',
     extensionId: config.wsExtensionId || null
   };
 }
@@ -111,97 +111,104 @@ async function executeSignal(signal) {
 
   const tab = tabs[0];
 
-  // Inject content script if needed
   try {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['content.js'] });
   } catch {}
   await new Promise(r => setTimeout(r, 300));
 
-  // Send signal as pending to content script (it handles timer sync)
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      action: 'executeSignal',
-      signal: {
-        chip: signal.chip,
-        spots: signal.spots,
-        delay: signal.delay || 300
-      }
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: async (sig) => {
+        if (typeof window.executeClickSequence === 'function') {
+          if (window.bettingOpen) {
+            await window.executeClickSequence(sig);
+            return { status: 'executing' };
+          } else {
+            window.pendingSignal = sig;
+            return { status: 'pending' };
+          }
+        }
+        return null;
+      },
+      args: [{ chip: signal.chip, betAmount: signal.betAmount, spots: signal.spots, delay: signal.delay || 300 }]
     });
-    
+
+    let response = { status: 'executing' };
+    if (results) {
+      for (const r of results) {
+        if (r.result && r.result.status === 'pending') { response.status = 'pending'; break; }
+      }
+    }
+
     let desc = '';
     const details = [];
     if (signal.chip) details.push(`Ficha: R$ ${signal.chip}`);
     if (signal.spots) details.push(`Spots: ${signal.spots.length}`);
     desc = details.join(' • ');
 
+    const showNotif = async (title, d) => {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        func: (t, d) => { if (typeof window.createSignalNotification === 'function') window.createSignalNotification(t, d); },
+        args: [title, d]
+      });
+    };
+
     if (response && response.status === 'pending') {
-      // Signal will execute when timer hits 5
-      chrome.runtime.sendMessage({
-        action: 'signalReceived',
-        title: '⏳ Sinal na Fila',
-        desc: `Aguardando abertura das apostas... ${desc}`
-      }).catch(() => {});
-      
-      // Also show on page
-      try {
-        await chrome.tabs.sendMessage(tab.id, {
-          action: 'showSignalNotification',
-          title: '⏳ Sinal na Fila',
-          desc: `Aguardando abertura das apostas... ${desc}`
-        });
-      } catch {}
+      chrome.runtime.sendMessage({ action: 'signalReceived', title: '⏳ Sinal na Fila', desc: `Aguardando abertura das apostas... ${desc}` }).catch(() => {});
+      try { await showNotif('⏳ Sinal na Fila', `Aguardando abertura das apostas... ${desc}`); } catch {}
     } else {
-      // Executed immediately
-      chrome.runtime.sendMessage({
-        action: 'signalReceived',
-        title: '⚡ Sinal Executado!',
-        desc: desc
-      }).catch(() => {});
-      
-      try {
-        await chrome.tabs.sendMessage(tab.id, {
-          action: 'showSignalNotification',
-          title: '⚡ Sinal Executado!',
-          desc: desc
-        });
-      } catch {}
+      chrome.runtime.sendMessage({ action: 'signalReceived', title: '⚡ Sinal Executado!', desc }).catch(() => {});
+      try { await showNotif('⚡ Sinal Executado!', desc); } catch {}
     }
   } catch (err) {
     console.error('[Signal] Execute error:', err);
-    // Fallback: try direct click execution
     await fallbackExecute(tab, signal);
   }
 }
 
 async function fallbackExecute(tab, signal) {
-  // 1. Click chip
+  const clickFn = async (selector, delay, repeat, idx) => {
+    if (typeof window.clickElementsFunction === 'function') await window.clickElementsFunction(selector, delay, repeat, idx);
+  };
+  
   if (signal.chip) {
     try {
-      await chrome.tabs.sendMessage(tab.id, {
-        action: 'clickElements',
-        selector: `[data-role="chip"][data-value="${signal.chip}"]`,
-        delay: 100, repeat: 1, order: 'all', index: null
+      var chipIdx = { '0.5': 0, '0,50': 0, '1': 1, '2.5': 2, '2,50': 2, '5': 3, '10': 4, '25': 5 }[String(signal.chip)];
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        func: (chipValue) => {
+          const el = document.querySelector(`[data-role="chip"][data-value="${chipValue}"]`);
+          if (el) { el.click(); return { clicked: 1 }; }
+          return { clicked: 0 };
+        },
+        args: [String(signal.chip)]
       });
     } catch {}
     await new Promise(r => setTimeout(r, signal.delay || 300));
   }
-  // 2. Click spots
   if (signal.spots && signal.spots.length > 0) {
     for (const spotLabel of signal.spots) {
-      const spotMap = {
-        'Spot 1': 'bet-spot-1', 'Spot 2': 'bet-spot-2',
-        'Spot 5': 'bet-spot-5', 'Spot 10': 'bet-spot-10',
-        'Bônus Verde': 'bet-spot-b1', 'Bônus Rosa': 'bet-spot-b2',
-        'Bônus Azul': 'bet-spot-b3', 'Bônus Vermelho': 'bet-spot-b4',
-      };
-      const role = spotMap[spotLabel] || spotLabel;
-      try {
-        await chrome.tabs.sendMessage(tab.id, {
-          action: 'clickElements',
-          selector: `[data-role="${role}"]`,
-          delay: signal.delay || 300, repeat: 1, order: 'all', index: null
-        });
-      } catch {}
+      var spotIdx = { 'Spot 1': 0, '1': 0, 'Spot 2': 1, '2': 1, 'Coin Flip': 2, 'coinflip': 2, 'Pachinko': 3, 'pachinko': 3, 'Spot 5': 4, '5': 4, 'Spot 10': 5, '10': 5, 'Cash Hunt': 6, 'cashhunt': 6, 'Crazy Time': 7, 'crazytime': 7 }[spotLabel];
+      if (spotIdx !== undefined) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            func: clickFn,
+            args: ['.gAopRU', 100, 1, spotIdx]
+          });
+        } catch {}
+      } else {
+        var role = { 'Bônus Verde': 'bet-spot-b1', 'Bônus Rosa': 'bet-spot-b2', 'Bônus Azul': 'bet-spot-b3', 'Bônus Vermelho': 'bet-spot-b4' }[spotLabel] || spotLabel;
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            func: clickFn,
+            args: [`[data-role="${role}"]`, signal.delay || 300, 1, null]
+          });
+        } catch {}
+      }
       await new Promise(r => setTimeout(r, signal.delay || 300));
     }
   }
