@@ -1,0 +1,6 @@
+{
+  "name": "Codviber Crazy",
+  "description": "Análise estatística em tempo real e histórico de resultados do jogo Crazy Time da Evolution Gaming.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
