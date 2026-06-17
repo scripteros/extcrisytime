@@ -125,16 +125,48 @@ async function runTest(selector, label, delay = 300) {
   }
 }
 
-async function testSpot1() {
-  await runTest('[data-role="bet-spot-1"]', 'Spot 1');
+async function spotClick(opts, label) {
+  const resultBox = $('testResult');
+  resultBox.className = 'test-result show';
+  resultBox.textContent = `🔄 ${label}...`;
+  
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs || tabs.length === 0) throw new Error('Nenhuma aba');
+    const tabId = tabs[0].id;
+
+    // Inject content script
+    try { await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }); } catch {}
+    await new Promise(r => setTimeout(r, 300));
+
+    const resp = await chrome.tabs.sendMessage(tabId, {
+      action: 'clickElements',
+      selector: opts.selector,
+      delay: opts.delay || 100,
+      repeat: 1,
+      index: opts.index !== undefined ? opts.index : null
+    });
+
+    resultBox.className = 'test-result show success';
+    resultBox.textContent = `✅ ${label}: ${resp?.clicked || 0} clique(s)`;
+    if (resp?.errors?.length) resultBox.textContent += `\n⚠️ ${resp.errors[0]}`;
+  } catch (err) {
+    resultBox.className = 'test-result show error';
+    resultBox.textContent = `❌ ${label}: ${err.message}`;
+  }
 }
 
+async function testSpot1() { await spotClick({ selector: '.gAopRU', index: 0 }, 'Spot 1'); }
+async function testSpot2() { await spotClick({ selector: '.gAopRU', index: 1 }, 'Spot 2'); }
+async function testSpot5() { await spotClick({ selector: '.gAopRU', index: 2 }, 'Spot 5'); }
+async function testSpot10() { await spotClick({ selector: '.gAopRU', index: 3 }, 'Spot 10'); }
+
 async function testChip() {
-  await runTest('[data-role="chip"][data-value="0.5"]', 'Ficha R$ 0,50');
+  await spotClick({ selector: '[data-role="chip"][data-value="0.5"]' }, 'Ficha R$ 0,50');
 }
 
 async function testBetOnAll() {
-  await runTest('[data-role="bet-on-all-button"]', 'Apostar em Todos');
+  await spotClick({ selector: '[data-role="bet-on-all-button"]' }, 'Apostar em Todos');
 }
 
 async function testTimer() {
@@ -207,11 +239,46 @@ async function testGale() {
   }
 }
 
+async function testSignalLink() {
+  const resultBox = $('testResult');
+  resultBox.className = 'test-result show';
+  resultBox.textContent = '🔄 Enviando sinal via API...';
+  
+  try {
+    const status = await sendToBackground('getWsStatus', {});
+    if (!status?.extensionId) throw new Error('ID da extensão não encontrado');
+    
+    const res = await fetch(`http://servico.mobap.com.br:3005/api/send-signal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        extensionId: status.extensionId,
+        chip: 0.5,
+        spots: ['Spot 1'],
+        delay: 300
+      })
+    });
+    const data = await res.json();
+    
+    resultBox.className = 'test-result show ' + (data.success ? 'success' : 'error');
+    resultBox.textContent = data.success
+      ? `✅ Sinal enviado! Aguarde a execução...`
+      : `❌ Erro: ${data.error || 'desconhecido'}`;
+  } catch (err) {
+    resultBox.className = 'test-result show error';
+    resultBox.textContent = `❌ Sinal: ${err.message}`;
+  }
+}
+
 $('testSpot1').addEventListener('click', testSpot1);
+$('testSpot2').addEventListener('click', testSpot2);
+$('testSpot5').addEventListener('click', testSpot5);
+$('testSpot10').addEventListener('click', testSpot10);
 $('testChip').addEventListener('click', testChip);
 $('testBetOnAll').addEventListener('click', testBetOnAll);
 $('testTimer').addEventListener('click', testTimer);
 $('testGale').addEventListener('click', testGale);
+$('testSignalLink').addEventListener('click', testSignalLink);
 
 // ==================== Init ====================
 

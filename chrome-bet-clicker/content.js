@@ -115,27 +115,33 @@ async function executeClickSequence(signal) {
   // 2. Click each spot
   if (signal.spots && signal.spots.length > 0) {
     for (const spotLabel of signal.spots) {
-      // Map spot label to data-role selector
-      const spotMap = {
-        'Spot 1': 'bet-spot-1',
-        'Spot 2': 'bet-spot-2',
-        'Spot 5': 'bet-spot-5',
-        'Spot 10': 'bet-spot-10',
-        'Bônus Verde': 'bet-spot-b1',
-        'Bônus Rosa': 'bet-spot-b2',
-        'Bônus Azul': 'bet-spot-b3',
-        'Bônus Vermelho': 'bet-spot-b4',
+      // Map spot label to .gAopRU index
+      var gAopIndexMap = {
+        'Spot 1': 0, '1': 0,
+        'Spot 2': 1, '2': 1,
+        'Spot 5': 2, '5': 2,
+        'Spot 10': 3, '10': 3,
       };
-      const role = spotMap[spotLabel] || spotLabel;
-      const selector = `[data-role="${role}"]`;
-      const els = findElements(selector);
+      const idx = gAopIndexMap[spotLabel];
       
-      for (const el of els) {
-        try {
+      if (idx !== undefined) {
+        // Use .gAopRU with index (confirmed working)
+        const els = findElements('.gAopRU');
+        const el = els[idx];
+        if (el) {
           scrollIntoView(el);
           await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
           clickElement(el);
-        } catch {}
+        }
+      } else {
+        // Fallback: use data-role for bonus spots etc
+        const selector = `[data-role="${spotLabel}"]`;
+        const els = findElements(selector);
+        for (const el of els) {
+          scrollIntoView(el);
+          await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
+          clickElement(el);
+        }
       }
       await new Promise(r => setTimeout(r, signal.delay || 300));
     }
@@ -175,7 +181,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'clickElements':
-      clickElementsFunction(message.selector, message.delay || 300, message.repeat || 1)
+      clickElementsFunction(message.selector, message.delay || 300, message.repeat || 1, message.index)
         .then(result => sendResponse(result))
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
@@ -193,11 +199,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Legacy click function
-async function clickElementsFunction(selector, delay, repeat) {
+async function clickElementsFunction(selector, delay, repeat, index = null) {
   let clicked = 0;
   const errors = [];
   for (let r = 0; r < (repeat || 1) && !stopRequested; r++) {
-    const elements = findElements(selector);
+    let elements = findElements(selector);
+    
+    // If index is specified, click only that element
+    if (index !== null && typeof index === 'number') {
+      if (index < elements.length && elements[index]) {
+        const el = elements[index];
+        if (el.offsetParent !== null || el.getClientRects().length > 0) {
+          try {
+            scrollIntoView(el);
+            await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
+            clickElement(el);
+            clicked++;
+            return { success: true, clicked, errors };
+          } catch (e) { errors.push(`Erro ao clicar [${index}]: ${e.message}`); }
+        } else {
+          errors.push(`Elemento [${index}] não está visível`);
+        }
+      } else {
+        errors.push(`Índice ${index} inválido — apenas ${elements.length} elemento(s) encontrado(s)`);
+      }
+      break;
+    }
+    
+    // Normal: click all visible
     const visible = elements.filter(el => el.offsetParent !== null || el.getClientRects().length > 0);
     if (visible.length === 0) { errors.push('Nenhum elemento visível'); break; }
     for (let i = 0; i < visible.length && !stopRequested; i++) {

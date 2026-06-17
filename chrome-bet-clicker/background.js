@@ -188,20 +188,27 @@ async function fallbackExecute(tab, signal) {
   // 2. Click spots
   if (signal.spots && signal.spots.length > 0) {
     for (const spotLabel of signal.spots) {
-      const spotMap = {
-        'Spot 1': 'bet-spot-1', 'Spot 2': 'bet-spot-2',
-        'Spot 5': 'bet-spot-5', 'Spot 10': 'bet-spot-10',
-        'Bônus Verde': 'bet-spot-b1', 'Bônus Rosa': 'bet-spot-b2',
-        'Bônus Azul': 'bet-spot-b3', 'Bônus Vermelho': 'bet-spot-b4',
-      };
-      const role = spotMap[spotLabel] || spotLabel;
-      try {
-        await chrome.tabs.sendMessage(tab.id, {
-          action: 'clickElements',
-          selector: `[data-role="${role}"]`,
-          delay: signal.delay || 300, repeat: 1, order: 'all', index: null
-        });
-      } catch {}
+      var spotIdx = { 'Spot 1': 0, '1': 0, 'Spot 2': 1, '2': 1, 'Spot 5': 2, '5': 2, 'Spot 10': 3, '10': 3 }[spotLabel];
+      var selector;
+      if (spotIdx !== undefined) {
+        selector = '.gAopRU';
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            action: 'clickElements',
+            selector: '.gAopRU',
+            delay: 100, repeat: 1, order: 'all', index: spotIdx
+          });
+        } catch {}
+      } else {
+        var role = { 'Bônus Verde': 'bet-spot-b1', 'Bônus Rosa': 'bet-spot-b2', 'Bônus Azul': 'bet-spot-b3', 'Bônus Vermelho': 'bet-spot-b4' }[spotLabel] || spotLabel;
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            action: 'clickElements',
+            selector: `[data-role="${role}"]`,
+            delay: signal.delay || 300, repeat: 1, order: 'all', index: null
+          });
+        } catch {}
+      }
       await new Promise(r => setTimeout(r, signal.delay || 300));
     }
   }
