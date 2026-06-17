@@ -10,7 +10,8 @@ interface SignalLog {
   chip: number | null;
   spots: string[];
   delay: number;
-  status: "sent" | "failed";
+  status: "sent" | "failed" | "queued" | "executed";
+  executedAt?: string;
   error?: string;
 }
 
@@ -232,8 +233,10 @@ export default function SignalSender() {
                         <div key={log.id} className="px-3 py-2 hover:bg-white/[0.02] transition-colors">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              {log.status === "sent" ? (
-                                <Send size={10} className="text-emerald-400 shrink-0" />
+                              {log.status === "sent" || log.status === "executed" ? (
+                                <Send size={10} className={`shrink-0 ${log.status === "executed" ? "text-green-400" : "text-emerald-400"}`} />
+                              ) : log.status === "queued" ? (
+                                <Clock size={10} className="text-amber-400 shrink-0" />
                               ) : (
                                 <XCircle size={10} className="text-rose-400 shrink-0" />
                               )}
@@ -250,8 +253,12 @@ export default function SignalSender() {
                               <span className="text-[9px] text-slate-600 font-mono">
                                 {formatTime(log.timestamp)}
                               </span>
-                              {log.status === "sent" ? (
-                                <span className="text-[9px] text-emerald-500/60">✓</span>
+                              {log.status === "sent" || log.status === "executed" ? (
+                                <span title={log.status === "executed" ? `Executado${log.executedAt ? ` às ${formatTime(log.executedAt)}` : ""}` : ""} className={`text-[9px] ${log.status === "executed" ? "text-green-400" : "text-emerald-500/60"}`}>
+                                  {log.status === "executed" ? "✅" : "✓"}
+                                </span>
+                              ) : log.status === "queued" ? (
+                                <span className="text-[9px] text-amber-500/60" title="Aguardando abertura de apostas">⏳</span>
                               ) : (
                                 <span className="text-[9px] text-rose-500/60" title={log.error}>✗</span>
                               )}

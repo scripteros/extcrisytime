@@ -25,7 +25,8 @@ interface SignalHistoryEntry {
   chip: number | null;
   spots: string[];
   delay: number;
-  status: "sent" | "failed" | "queued";
+  status: "sent" | "failed" | "queued" | "executed";
+  executedAt?: string;
   error?: string;
 }
 
@@ -413,6 +414,26 @@ ${delayText}
             open: false,
             since: new Date().toISOString()
           });
+        } else if (msg.type === "signalExecuted" && currentExtensionId) {
+          const signalId = msg.signalId;
+          if (signalId) {
+            const log = signalLogs.find(l => l.id === signalId);
+            if (log) {
+              log.status = "executed";
+              log.executedAt = new Date().toISOString();
+            }
+            console.log(`✅ Signal ${signalId} executed by ${currentExtensionId}`);
+          }
+        } else if (msg.type === "signalFailed" && currentExtensionId) {
+          const signalId = msg.signalId;
+          if (signalId) {
+            const log = signalLogs.find(l => l.id === signalId);
+            if (log) {
+              log.status = "failed";
+              log.error = msg.error || "Erro na execução";
+            }
+            console.log(`❌ Signal ${signalId} failed on ${currentExtensionId}: ${msg.error}`);
+          }
         }
       } catch (err) {
         console.error("Invalid WS message:", err);

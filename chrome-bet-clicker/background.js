@@ -63,7 +63,31 @@ async function connectWebSocket() {
           chrome.runtime.sendMessage({ action: 'wsStatusChanged', connected: true }).catch(() => {});
         } else if (msg.type === 'signal') {
           console.log('[Signal WS] Signal received:', msg);
-          executeSignal(msg);
+          const signalId = msg.id;
+          // Forward to content script with signalId
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tab = tabs[0];
+            if (!tab || !tab.id) {
+              console.log('[Signal WS] ❌ No active tab');
+              sendWsMessage({ type: 'signalFailed', signalId, error: 'No active tab' });
+              return;
+            }
+            chrome.tabs.sendMessage(tab.id, { 
+              action: 'executeSignal', 
+              signal: msg,
+              signalId 
+            }).then(response => {
+              // Content script confirmed execution
+              sendWsMessage({ type: 'signalExecuted', signalId, result: response });
+              console.log('[Signal WS] ✅ Signal confirmed:', signalId);
+            }).catch(err => {
+              console.log('[Signal WS] ❌ Content script error:', err);
+              sendWsMessage({ type: 'signalFailed', signalId, error: err.message });
+            });
+          });
+          chrome.action.setBadgeText({ text: '⚡' });
+          chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+          setTimeout(() => chrome.action.setBadgeText({ text: 'ON' }), 4000);
         }
       } catch (err) {
         console.error('[Signal WS] Parse error:', err);
@@ -93,6 +117,12 @@ function onWsDisconnected() {
       wsReconnectTimer = setTimeout(connectWebSocket, 5000);
     }
   });
+}
+
+function sendWsMessage(data) {
+  if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+    try { wsClient.send(JSON.stringify(data)); } catch {}
+  }
 }
 
 async function disconnectWebSocket() {
@@ -268,6 +298,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try { wsClient.send(JSON.stringify({ type: 'bettingClosed', extensionId: wsExtensionId })); } catch {}
       }
       sendResponse({ ok: true });
+      break;
+
+    case 'signalExecuted':
+      // Forward confirmation from content script to WebSocket
+      if (message.signalId) {
+        sendWsMessage({ type: 'signalExecuted', signalId: message.signalId });
+      }
+      break;
+
+    case 'signalFailed':
+      if (message.signalId) {
+        sendWsMessage({ type: 'signalFailed', signalId: message.signalId, error: message.error || 'Erro no content script' });
+      }
       break;
   }
 });

@@ -181,17 +181,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.signal) {
         if (bettingOpen) {
           // Betting is already open, execute immediately
-          executeClickSequence(message.signal).then(() => {
-            chrome.runtime.sendMessage({ action: 'signalExecuted' }).catch(() => {});
-          });
+          (async () => {
+            await executeClickSequence(message.signal);
+            chrome.runtime.sendMessage({ action: 'signalExecuted', signalId: message.signalId }).catch(() => {});
+          })();
           sendResponse({ status: 'executing' });
         } else {
           // Store as pending - will execute when timer hits 5
-          pendingSignal = message.signal;
+          pendingSignal = { ...message.signal, signalId: message.signalId };
           sendResponse({ status: 'pending' });
         }
       }
-      break;
+      // Keep sendResponse channel open
+      return true;
 
     case 'getTimerStatus':
       const text = getTimerText();
