@@ -44,7 +44,10 @@ export default function BetSimulator({ spins, crazyTimeFlapper, setCrazyTimeFlap
   const [maxSorosLevels, setMaxSorosLevels] = useState<number>(3);
   const [sorosReinvestPercent, setSorosReinvestPercent] = useState<number>(100);
   const [selectedSectors, setSelectedSectors] = useState<string[]>(["1", "2"]); // Default safe strategy
-  const [isLiveEnabled, setIsLiveEnabled] = useState<boolean>(false);
+  const [isLiveEnabled, setIsLiveEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem("bs_live_enabled") === "true"; }
+    catch { return false; }
+  });
 
   // States
   const [currentBankroll, setCurrentBankroll] = useState<number>(1000);
@@ -322,7 +325,10 @@ export default function BetSimulator({ spins, crazyTimeFlapper, setCrazyTimeFlap
     }
   };
 
-  // Calculated variables
+  // Persist live toggle
+  useEffect(() => {
+    try { localStorage.setItem("bs_live_enabled", isLiveEnabled.toString()); } catch {}
+  }, [isLiveEnabled]);
   const profitLoss = currentBankroll - initialBankroll;
   const roi = totalPlacedBetsCount > 0 ? (profitLoss / (baseBet * totalPlacedBetsCount)) * 100 : 0;
   const winRate = totalPlacedBetsCount > 0 ? (winsCount / totalPlacedBetsCount) * 100 : 0;
