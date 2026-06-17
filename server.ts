@@ -181,7 +181,70 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
       res.json({ advice });
     } catch (err: any) {
       console.error("Erro na API Groq:", err);
-      res.status(500).json({ error: err.message || "Erro interno ao processar inteligência artificial." });
+      // Fallback: generate local statistical analysis
+      const sc = statsContext;
+      const spins = spinsContext || [];
+      const last15 = spins.slice(0, 15);
+      const sectorCounts: Record<string, number> = {};
+      const sectorMult: Record<string, number[]> = {};
+      for (const s of spins) {
+        if (!sectorCounts[s.sectorKey]) { sectorCounts[s.sectorKey] = 0; sectorMult[s.sectorKey] = []; }
+        sectorCounts[s.sectorKey]++;
+        sectorMult[s.sectorKey].push(s.maxMultiplier);
+      }
+      const sorted = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]);
+      const top1 = sorted[0]?.[0] || "1";
+      const top2 = sorted[1]?.[0] || "2";
+      const top1Pct = sc.totalSpins > 0 ? ((sorted[0]?.[1] || 0) / sc.totalSpins * 100).toFixed(1) : "0";
+      const top2Pct = sc.totalSpins > 0 ? ((sorted[1]?.[1] || 0) / sc.totalSpins * 100).toFixed(1) : "0";
+      const avgMult1 = sectorMult[top1]?.length ? (sectorMult[top1].reduce((a, b) => a + b, 0) / sectorMult[top1].length).toFixed(1) : "1.0";
+      
+      // Safe strategy: Covering 1+2 gives ~63% of segments, covering 1+2+5 gives ~76%
+      const safeCov1 = 21 + 13; // 34 segments = 63%
+      const safeCov2 = 21 + 13 + 7; // 41 segments = 76%
+      
+      const lastResult = last15[0];
+      const lastSectorKey = lastResult?.sectorKey || "N/A";
+      const delayText = sc.roundsSinceLastBonus > 10 
+        ? `⚠️ **ALERTA**: ${sc.roundsSinceLastBonus} rodadas sem bônus! Saturação de ${sc.predictedBonusChance.toFixed(1)}% — probabilidade de bônus **muito alta** nas próximas rodadas.`
+        : sc.roundsSinceLastBonus > 5
+          ? `🔸 ${sc.roundsSinceLastBonus} rodadas sem bônus (${sc.predictedBonusChance.toFixed(1)}% de saturação).`
+          : `🟢 Apenas ${sc.roundsSinceLastBonus} rodadas desde o último bônus.`;
+
+      const advice = `**📊 ANÁLISE ESTATÍSTICA DA MESA**
+
+**1. ESTADO CLIMÁTICO DA MESA**
+📍 Período analisado: ${sc.totalSpins} giros
+🎯 Setor mais frequente: **${top1}** (${top1Pct}% das ocorrências, média ${avgMult1}x)
+🥈 Segundo setor: **${top2}** (${top2Pct}%)
+📊 Bônus: ${sc.bonusCount} de ${sc.totalSpins} giros (${sc.bonusPercentage.toFixed(1)}%)
+${delayText}
+
+**2. PREVISÃO DE PRÓXIMO BÔNUS**
+📈 Saturação estatística: ${sc.predictedBonusChance.toFixed(1)}%
+🔮 Confiança da previsão: **${sc.predictionConfidence}**
+💡 Último bônus há ${sc.roundsSinceLastBonus} giros
+
+**3. ESTRATÉGIA RECOMENDADA — Cobertura Segura (${safeCov1}/54 = ${((safeCov1/54)*100).toFixed(0)}% dos segmentos)**
+✅ **Cobertura 1 + 2**: Cobre ${safeCov1}/54 segmentos (${((safeCov1/54)*100).toFixed(0)}% de acerto teórico)
+💰 Distribuição sugerida: 60% no **1**, 40% no **2**
+📊 Retorno esperado por aposta:
+  • Se sair **1**: Retorno de 1× + aposta = lucro de ${lastSectorKey === "1" ? "uma aposta" : "~10-20%"}
+  • Se sair **2**: Retorno de 2× + aposta = lucro de até 100%
+🎯 Gale em 1 rodada se necessário
+
+**4. Estratégia Ampliada (${safeCov2}/54 = ${((safeCov2/54)*100).toFixed(0)}% dos segmentos)**
+✅ **Cobertura 1 + 2 + 5**: Cobre ${safeCov2}/54 segmentos
+💰 Distribuição: 50% no **1**, 30% no **2**, 20% no **5**
+📊 Risco vs Retorno equilibrado
+
+**5. Recomendações para a PRÓXIMA RODADA**
+🎯 **${top1}** está em tendência (${top1Pct}% das ocorrências)
+🎯 **${top2}** como segundo alvo (${top2Pct}%)${sc.roundsSinceLastBonus > 8 ? `\n🎯 **Bônus**: Alta probabilidade de aparecer (${sc.predictedBonusChance.toFixed(1)}%)` : ""}
+
+📌 *Análise local (Groq API indisponível). As probabilidades são baseadas na distribuição real dos ${sc.totalSpins} giros analisados.*`;
+
+      res.json({ advice });
     }
   });
 
