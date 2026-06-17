@@ -13,7 +13,7 @@ import SignalSender from "./components/SignalSender";
 import { SignalConfigPanel, useSignalRelay } from "./hooks/useSignalRelay";
 import LandingPage from "./components/LandingPage";
 import CodviberLogo from "./components/CodviberLogo";
-import { RotateCw, Clock, Sparkles, TrendingUp, HelpCircle, ShieldCheck, RefreshCw, Home, BarChart3, Layers, Radio } from "lucide-react";
+import { RotateCw, Clock, Sparkles, TrendingUp, HelpCircle, ShieldCheck, RefreshCw, Home, BarChart3, Layers, Radio, LayoutDashboard, Brain, Target, DollarSign, Timer, BarChart4, History, Waves, Wifi, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -29,6 +29,8 @@ export default function App() {
   const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"standard" | "market">("standard");
   const [crazyTimeFlapper, setCrazyTimeFlapper] = useState<"alternate" | "Green" | "Blue" | "Yellow">("alternate");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeMenu, setActiveMenu] = useState<string>("dashboard");
 
   // Shared signal relay configuration (persisted in localStorage)
   const signalRelay = useSignalRelay();
@@ -435,136 +437,138 @@ export default function App() {
               </div>
             </div>
 
-            {/* Mode Tab Switcher */}
-            <div className="flex items-center justify-between border border-white/5 rounded-2xl bg-white/[0.015] p-3 flex-wrap gap-4" id="mode-tab-switcher">
-              <div className="text-left font-sans pl-1">
-                <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5"><Sparkles size={11} className="text-[#ec4899]" /> MÓDULO DE VISUALIZAÇÃO</h4>
-                <p className="text-[10px] text-slate-400">Escolha carregar o Painel Estatístico Padrão ou o simulador de Velas do Mercado Financeiro.</p>
+            {/* Sidebar + Content Layout */}
+            <div className="flex gap-5 items-start">
+              
+              {/* Sidebar Navigation */}
+              <div className={`${sidebarOpen ? 'w-48' : 'w-12'} shrink-0 transition-all duration-300`}>
+                <div className="glass-panel rounded-2xl border border-white/5 bg-slate-900/40 overflow-hidden sticky top-24">
+                  
+                  {/* Toggle button */}
+                  <button
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="w-full flex items-center gap-2 px-3 py-3 border-b border-white/5 text-slate-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+                  >
+                    {sidebarOpen ? <X size={14} /> : <Menu size={14} />}
+                    {sidebarOpen && <span className="text-[10px] uppercase tracking-wider font-semibold">Menu</span>}
+                  </button>
+
+                  {/* Menu items */}
+                  <div className="py-1.5">
+                    {[
+                      { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', desc: 'Estatísticas' },
+                      { id: 'aiadvisor', icon: Brain, label: 'IA Mentor', desc: 'Análise por IA' },
+                      { id: 'patterns', icon: Target, label: 'Padrões', desc: 'Pattern + Soros' },
+                      { id: 'simulator', icon: DollarSign, label: 'Simulador', desc: 'Estratégias' },
+                      { id: 'delays', icon: Timer, label: 'Atrasos', desc: 'Ciclos' },
+                      { id: 'frequency', icon: BarChart4, label: 'Frequência', desc: 'Distribuição' },
+                      { id: 'history', icon: History, label: 'Histórico', desc: 'Resultados' },
+                      { id: 'market', icon: Waves, label: 'Velas', desc: 'Gráfico' },
+                      { id: 'signals', icon: Wifi, label: 'Sinais', desc: 'Extension Relay' },
+                    ].map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveMenu(item.id)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-xs transition-all cursor-pointer border-l-2 ${
+                          activeMenu === item.id
+                            ? 'bg-[#d4a84c]/10 text-[#d4a84c] border-l-[#d4a84c]'
+                            : 'text-slate-400 border-l-transparent hover:text-white hover:bg-white/5'
+                        }`}
+                        title={!sidebarOpen ? item.label : undefined}
+                      >
+                        <item.icon size={16} className="shrink-0" />
+                        {sidebarOpen && (
+                          <div className="text-left min-w-0">
+                            <div className="font-semibold truncate">{item.label}</div>
+                            <div className="text-[9px] text-slate-500 truncate">{item.desc}</div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={() => setActiveTab("standard")}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-sans font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer ${
-                    activeTab === "standard"
-                      ? "bg-[#d4a84c] text-black shadow-[0_4px_15px_rgba(212,168,76,0.2)]"
-                      : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <Layers size={13} />
-                  <span>Painel Estatístico Principal</span>
-                </button>
+              {/* Content Area */}
+              <div className="flex-1 min-w-0">
+                
+                {/* Conditional content based on activeMenu */}
+                {activeMenu === 'dashboard' && (
+                  <div className="space-y-6">
+                    <AIAdvisor spins={filteredSpins} stats={stats} />
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                      <div className="col-span-1 lg:col-span-5">
+                        <FrequencyAnalysis
+                          allSpins={filteredSpins}
+                          selectedSector={selectedFilter === "all" || selectedFilter === "bonus" ? null : selectedFilter}
+                          onSelectSector={handleSelectSectorFromFrequency}
+                        />
+                      </div>
+                      <div className="col-span-1 lg:col-span-7">
+                        <HistoryGrid
+                          spins={filteredSpins}
+                          selectedFilter={selectedFilter}
+                          onChangeFilter={setSelectedFilter}
+                        />
+                      </div>
+                    </div>
+                    <SignalSender />
+                  </div>
+                )}
 
-                <button
-                  onClick={() => setActiveTab("market")}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-sans font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer ${
-                    activeTab === "market"
-                      ? "bg-[#ec4899] text-white shadow-[0_4px_15px_rgba(236,72,153,0.2)]"
-                      : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <BarChart3 size={13} />
-                  <span>Terminal de Velas & Catalogador</span>
-                </button>
+                {activeMenu === 'aiadvisor' && <AIAdvisor spins={filteredSpins} stats={stats} />}
+                {activeMenu === 'patterns' && <PatternDetector spins={filteredSpins} />}
+                {activeMenu === 'simulator' && <BetSimulator spins={filteredSpins} />}
+                {activeMenu === 'delays' && <DelayAnalysis allSpins={filteredSpins} />}
+
+                {activeMenu === 'frequency' && (
+                  <FrequencyAnalysis
+                    allSpins={filteredSpins}
+                    selectedSector={selectedFilter === "all" || selectedFilter === "bonus" ? null : selectedFilter}
+                    onSelectSector={handleSelectSectorFromFrequency}
+                  />
+                )}
+
+                {activeMenu === 'history' && (
+                  <HistoryGrid
+                    spins={filteredSpins}
+                    selectedFilter={selectedFilter}
+                    onChangeFilter={setSelectedFilter}
+                  />
+                )}
+
+                {activeMenu === 'market' && <MarketChartAnalysis allSpins={filteredSpins} />}
+                {activeMenu === 'signals' && <SignalSender />}
+
+                {/* Footer card */}
+                <footer className="glass-panel p-6 rounded-2xl border border-white/5 mt-6" id="tracker-guideline-footer">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-[#d4a84c] shrink-0">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-bold text-white text-sm mb-1.5">
+                        Informações Importantes & Distribuição Estatística Real (RTP)
+                      </h4>
+                      <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                        Crazy Time é um jogo de cassino ao vivo com uma roleta física que possui exatamente 54 segmentos distribuídos. O retorno teórico ao jogador (RTP) varia de 96.08% (número 1) a 94.41% (Crazy Time). As jogadas são independentes e as tendências registradas na amostragem de 100 giros servem para análise de variação probabilística de curto prazo.
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-white/5 font-mono text-[10px] text-gray-500">
+                        <div><span className="block text-white font-semibold">Segmentos Número 1:</span><span>21 / 54 (38.89% Teórico)</span></div>
+                        <div><span className="block text-white font-semibold">Segmentos Número 2:</span><span>13 / 54 (24.07% Teórico)</span></div>
+                        <div><span className="block text-white font-semibold">Segmentos Número 5:</span><span>7 / 54 (12.96% Teórico)</span></div>
+                        <div><span className="block text-white font-semibold">Segmentos Número 10:</span><span>4 / 54 (7.41% Teórico)</span></div>
+                        <div className="mt-2 text-[#eab308]"><span className="block font-semibold">Coin Flip Bônus:</span><span>4 / 54 (7.41% Teórico)</span></div>
+                        <div className="mt-2 text-[#22c55e]"><span className="block font-semibold">Pachinko Bônus:</span><span>2 / 54 (3.70% Teórico)</span></div>
+                        <div className="mt-2 text-[#ec4899]"><span className="block font-semibold">Cash Hunt Bônus:</span><span>2 / 54 (3.70% Teórico)</span></div>
+                        <div className="mt-2 text-[#d946ef]"><span className="block font-semibold">Crazy Time Bônus:</span><span>1 / 54 (1.85% Teórico)</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </footer>
+
               </div>
             </div>
-
-            {activeTab === "standard" ? (
-              <>
-                {/* AI Advisor - Groq Intelligence Engine */}
-                <AIAdvisor spins={filteredSpins} stats={stats} />
-
-                {/* Pattern Detector - Real-time statistics pattern tracking */}
-                <PatternDetector spins={filteredSpins} />
-
-                {/* Bet Simulator - Configurable Strategy Simulator */}
-                <BetSimulator spins={filteredSpins} />
-
-                {/* Delay and Cycle Analysis - Dynamic counters and typical thresholds */}
-                <DelayAnalysis allSpins={filteredSpins} />
-
-                {/* Signal Sender - Extension Relay */}
-                <SignalSender />
-
-                {/* 2. Content Split Layout: Frequency Analysis vs. History Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  
-                  {/* Frequency component: Takes 5 columns */}
-                  <div className="col-span-1 lg:col-span-5">
-                    <FrequencyAnalysis
-                      allSpins={filteredSpins}
-                      selectedSector={selectedFilter === "all" || selectedFilter === "bonus" ? null : selectedFilter}
-                      onSelectSector={handleSelectSectorFromFrequency}
-                    />
-                  </div>
-
-                  {/* History component: Takes 7 columns */}
-                  <div className="col-span-1 lg:col-span-7">
-                    <HistoryGrid
-                      spins={filteredSpins}
-                      selectedFilter={selectedFilter}
-                      onChangeFilter={setSelectedFilter}
-                    />
-                  </div>
-
-                </div>
-              </>
-            ) : (
-              <MarketChartAnalysis allSpins={filteredSpins} />
-            )}
-
-            {/* 3. Deep Statistical Insights Explanatory Footer Card */}
-            <footer className="glass-panel p-6 rounded-2xl border border-white/5 mt-4" id="tracker-guideline-footer">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-[#d4a84c] shrink-0">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h4 className="font-display font-bold text-white text-sm mb-1.5">
-                    Informações Importantes & Distribuição Estatística Real (RTP)
-                  </h4>
-                  <p className="text-xs text-gray-400 leading-relaxed mb-3">
-                    Crazy Time é um jogo de cassino ao vivo com uma roleta física que possui exatamente 54 segmentos distribuídos. O retorno teórico ao jogador (RTP) varia de 96.08% (número 1) a 94.41% (Crazy Time). As jogadas são independentes e as tendências registradas na amostragem de 100 giros servem para análise de variação probabilística de curto prazo.
-                  </p>
-                  
-                  {/* Grid layout parameters explanation */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-white/5 font-mono text-[10px] text-gray-500">
-                    <div>
-                      <span className="block text-white font-semibold">Segmentos Número 1:</span>
-                      <span>21 / 54 (38.89% Teórico)</span>
-                    </div>
-                    <div>
-                      <span className="block text-white font-semibold">Segmentos Número 2:</span>
-                      <span>13 / 54 (24.07% Teórico)</span>
-                    </div>
-                    <div>
-                      <span className="block text-white font-semibold">Segmentos Número 5:</span>
-                      <span>7 / 54 (12.96% Teórico)</span>
-                    </div>
-                    <div>
-                      <span className="block text-white font-semibold">Segmentos Número 10:</span>
-                      <span>4 / 54 (7.41% Teórico)</span>
-                    </div>
-                    <div className="mt-2 text-[#eab308]">
-                      <span className="block font-semibold">Coin Flip Bônus:</span>
-                      <span>4 / 54 (7.41% Teórico)</span>
-                    </div>
-                    <div className="mt-2 text-[#22c55e]">
-                      <span className="block font-semibold">Pachinko Bônus:</span>
-                      <span>2 / 54 (3.70% Teórico)</span>
-                    </div>
-                    <div className="mt-2 text-[#ec4899]">
-                      <span className="block font-semibold">Cash Hunt Bônus:</span>
-                      <span>2 / 54 (3.70% Teórico)</span>
-                    </div>
-                    <div className="mt-2 text-[#d946ef]">
-                      <span className="block font-semibold">Crazy Time Bônus:</span>
-                      <span>1 / 54 (1.85% Teórico)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </footer>
           </>
         )}
       </main>
