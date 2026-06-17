@@ -1594,7 +1594,38 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
                   Assertividade por Categoria
                 </h4>
               </div>
-              <span className="text-[10px] text-slate-500 font-mono">Simulador</span>
+              <div className="flex items-center gap-2">
+                {/* Pattern selection buttons for auto-send */}
+                {isConfigured && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] font-mono text-slate-500 uppercase">📡 Auto:</span>
+                    <button
+                      onClick={() => togglePatternSelection("any")}
+                      className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold transition-all cursor-pointer border ${
+                        selectedAutoPatterns.has("any")
+                          ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
+                          : "bg-transparent border-transparent text-slate-600 hover:text-slate-400"
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {PATTERN_TYPES_CONFIG.map(pt => (
+                      <button
+                        key={pt.key}
+                        onClick={() => togglePatternSelection(pt.key)}
+                        className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold transition-all cursor-pointer border ${
+                          selectedAutoPatterns.has(pt.key)
+                            ? `${pt.color} bg-white/10 border-white/20`
+                            : "bg-transparent border-transparent text-slate-600 hover:text-slate-400"
+                        }`}
+                      >
+                        {pt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <span className="text-[10px] text-slate-500 font-mono">Simulador</span>
+              </div>
             </div>
 
             <div className="space-y-2.5">
@@ -1607,14 +1638,25 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
                 return (
                   <div 
                     key={key} 
-                    className={`p-3 rounded-xl border transition-all ${
+                    onClick={() => { if (isConfigured) togglePatternSelection(key); }}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
                       isWinner 
                         ? "bg-pink-500/[0.04] border-pink-500/25 shadow-inner" 
-                        : "bg-black/20 border-white/5"
+                        : selectedAutoPatterns.has(key)
+                          ? "bg-emerald-500/[0.03] border-emerald-500/20"
+                          : "bg-black/20 border-white/5 hover:bg-white/[0.02]"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 truncate">
+                        {/* Selection indicator */}
+                        {isConfigured && (
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${
+                            selectedAutoPatterns.has("any") || selectedAutoPatterns.has(key)
+                              ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+                              : "bg-slate-700"
+                          }`} />
+                        )}
                         {label}
                         {isWinner && (
                           <span className="bg-pink-500/15 border border-pink-500/30 text-pink-400 text-[8px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0 animate-pulse">
