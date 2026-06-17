@@ -131,7 +131,7 @@ async function executeSignal(signal) {
         }
         return null;
       },
-      args: [{ chip: signal.chip, spots: signal.spots, delay: signal.delay || 300 }]
+      args: [{ chip: signal.chip, betAmount: signal.betAmount, spots: signal.spots, delay: signal.delay || 300 }]
     });
 
     let response = { status: 'executing' };

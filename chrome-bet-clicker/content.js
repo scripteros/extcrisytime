@@ -117,62 +117,54 @@ function stopTimerWatcher() {
 
 // ==================== Click Execution ====================
 
-async function executeClickSequence(signal) {
-  // 1. Click chip value
-  if (signal.chip) {
-    var chipEls = findElements(`[data-role="chip"][data-value="${signal.chip}"]`);
-    if (chipEls.length === 0) {
-      var chipIndexMap = { '0.5': 0, '0,50': 0, '1': 1, '2.5': 2, '2,50': 2, '5': 3, '10': 4, '25': 5 };
-      var idx = chipIndexMap[String(signal.chip)] || 0;
-      chipEls = findElements('.ftNWJU.CxpIc9');
-      if (idx < chipEls.length) chipEls = [chipEls[idx]];
-    }
-    for (var _i = 0; _i < chipEls.length; _i++) {
-      try {
-        scrollIntoView(chipEls[_i]);
-        await new Promise(function(r) { return setTimeout(r, 50 + Math.random() * 50); });
-        clickElement(chipEls[_i]);
-      } catch (e) {}
-    }
-    await new Promise(function(r) { return setTimeout(r, signal.delay || 300); });
-  }
+var CHIP_VALUE = 0.50; // Each spot click adds R$ 0.50
 
-  // 2. Click each spot
+async function executeClickSequence(signal) {
+  // Calculate default bet amount
+  var defaultBet = signal.betAmount || signal.chip || 0.50;
+
+  // Click each spot the required number of times
   if (signal.spots && signal.spots.length > 0) {
-    for (const spotLabel of signal.spots) {
-      // Map spot label to .gAopRU index
+    for (var s = 0; s < signal.spots.length; s++) {
+      var spotLabel = signal.spots[s];
+      // Support both string and { name, amount } formats
+      var spotName = typeof spotLabel === 'object' ? (spotLabel.name || spotLabel.label) : spotLabel;
+      var spotAmount = typeof spotLabel === 'object' ? (spotLabel.amount || spotLabel.bet || defaultBet) : defaultBet;
+      
+      var clicks = Math.max(1, Math.round(spotAmount / CHIP_VALUE));
+      
+      // Map spot to .gAopRU index
       var gAopIndexMap = {
         'Spot 1': 0, '1': 0,
         'Spot 2': 1, '2': 1,
-        'Coin Flip': 2, 'coinflip': 2,
-        'Pachinko': 3, 'pachinko': 3,
         'Spot 5': 4, '5': 4,
         'Spot 10': 5, '10': 5,
-        'Cash Hunt': 6, 'cashhunt': 6,
-        'Crazy Time': 7, 'crazytime': 7,
       };
-      const idx = gAopIndexMap[spotLabel];
+      var idx = gAopIndexMap[spotName];
       
       if (idx !== undefined) {
-        // Use .gAopRU with index (confirmed working)
-        const els = findElements('.gAopRU');
-        const el = els[idx];
+        var els = findElements('.gAopRU');
+        var el = els[idx];
         if (el) {
           scrollIntoView(el);
-          await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-          clickElement(el);
+          // Click N times to build the desired amount (each click = R$ 0.50)
+          for (var c = 0; c < clicks; c++) {
+            await new Promise(function(r) { return setTimeout(r, 120 + Math.random() * 60); });
+            clickElement(el);
+          }
         }
       } else {
-        // Fallback: use data-role for bonus spots etc
-        const selector = `[data-role="${spotLabel}"]`;
-        const els = findElements(selector);
-        for (const el of els) {
-          scrollIntoView(el);
-          await new Promise(r => setTimeout(r, 50 + Math.random() * 50));
-          clickElement(el);
+        // Fallback for bonus spots
+        for (var c = 0; c < clicks; c++) {
+          var els = findElements('[data-role="' + spotName + '"]');
+          for (var e = 0; e < els.length; e++) {
+            scrollIntoView(els[e]);
+            await new Promise(function(r) { return setTimeout(r, 80 + Math.random() * 40); });
+            clickElement(els[e]);
+          }
         }
       }
-      await new Promise(r => setTimeout(r, signal.delay || 300));
+      await new Promise(function(r) { return setTimeout(r, signal.delay || 300); });
     }
   }
 }
