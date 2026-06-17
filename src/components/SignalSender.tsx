@@ -15,7 +15,9 @@ interface SignalLog {
 }
 
 export default function SignalSender() {
-  const [enabled, setEnabled] = useState<boolean>(false);
+  const [enabled, setEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem("ss_enabled") === "true"; } catch { return false; }
+  });
   const [extensions, setExtensions] = useState<any[]>([]);
   const [extensionsLoading, setExtensionsLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState(false);
@@ -44,6 +46,11 @@ export default function SignalSender() {
       setSignalLogs(data.signals || []);
     } catch {}
   }, []);
+
+  // Persist enabled state to localStorage
+  useEffect(() => {
+    try { localStorage.setItem("ss_enabled", enabled.toString()); } catch {}
+  }, [enabled]);
 
   useEffect(() => {
     if (enabled) {

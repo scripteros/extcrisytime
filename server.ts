@@ -198,7 +198,7 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
 
   // Send a signal to a specific extension
   app.post("/api/send-signal", (req, res) => {
-    const { extensionId, chip, spots, delay, repeat, gales } = req.body;
+    const { extensionId, chip, betAmount, spots, delay, repeat, gales } = req.body;
 
     if (!extensionId) {
       return res.status(400).json({ error: "extensionId é obrigatório" });
@@ -206,6 +206,7 @@ Mantenha um tom altamente profissional de mentor de cassino, seguro, strategic, 
 
     const signal = {
       chip: chip || null,
+      betAmount: betAmount || chip || 0.5,
       spots: spots || [],
       delay: delay || 300,
       repeat: repeat || 1,

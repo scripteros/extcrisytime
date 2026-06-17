@@ -8,12 +8,13 @@ import AIAdvisor from "./components/AIAdvisor";
 import BetSimulator from "./components/BetSimulator";
 import PatternDetector from "./components/PatternDetector";
 import DelayAnalysis from "./components/DelayAnalysis";
+import SectorAnalysis from "./components/SectorAnalysis";
 import MarketChartAnalysis from "./components/MarketChartAnalysis";
 import SignalSender from "./components/SignalSender";
 import { SignalConfigPanel, useSignalRelay } from "./hooks/useSignalRelay";
 import LandingPage from "./components/LandingPage";
 import CodviberLogo from "./components/CodviberLogo";
-import { RotateCw, Clock, Sparkles, TrendingUp, HelpCircle, ShieldCheck, RefreshCw, Home, BarChart3, Layers, Radio, LayoutDashboard, Brain, Target, DollarSign, Timer, BarChart4, History, Waves, Wifi, Menu, X } from "lucide-react";
+import { RotateCw, Clock, Sparkles, TrendingUp, HelpCircle, ShieldCheck, RefreshCw, Home, BarChart3, Layers, Radio, LayoutDashboard, Brain, Target, DollarSign, Timer, BarChart4, History, Waves, Wifi, Menu, X, Crosshair } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -24,22 +25,55 @@ export default function App() {
   const [countdown, setCountdown] = useState<number>(20);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [timeFilter, setTimeFilter] = useState<string>("all"); // "all", "15m", "30m", "1h", "3h", "6h", "customDays"
-  const [customDays, setCustomDays] = useState<string>("1");
-  const [showLandingPage, setShowLandingPage] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<"standard" | "market">("standard");
-  const [crazyTimeFlapper, setCrazyTimeFlapper] = useState<"alternate" | "Green" | "Blue" | "Yellow">("alternate");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeMenu, setActiveMenu] = useState<string>("dashboard");
-
-  // Global analysis window (candle size / period) shared between PatternDetector and MarketChartAnalysis
-  const [analysisWindow, setAnalysisWindow] = useState<number>(() => {
-    try { const saved = localStorage.getItem("global_analysis_window"); return saved ? parseInt(saved) : 10; }
-    catch { return 10; }
+  const [timeFilter, setTimeFilter] = useState<string>(() => {
+    try { return localStorage.getItem("app_time_filter") || "all"; }
+    catch { return "all"; }
   });
   useEffect(() => {
-    try { localStorage.setItem("global_analysis_window", analysisWindow.toString()); } catch {}
-  }, [analysisWindow]);
+    try { localStorage.setItem("app_time_filter", timeFilter); } catch {}
+  }, [timeFilter]);
+  const [customDays, setCustomDays] = useState<string>(() => {
+    try { return localStorage.getItem("app_custom_days") || "1"; }
+    catch { return "1"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("app_custom_days", customDays); } catch {}
+  }, [customDays]);
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(() => {
+    try { return localStorage.getItem("app_show_landing") !== "false"; }
+    catch { return true; }
+  });
+  const [activeTab, setActiveTab] = useState<"standard" | "market">("standard");
+  const [crazyTimeFlapper, setCrazyTimeFlapper] = useState<"alternate" | "Green" | "Blue" | "Yellow">(() => {
+    try { const saved = localStorage.getItem("app_flapper_color"); if (saved === "alternate" || saved === "Green" || saved === "Blue" || saved === "Yellow") return saved; }
+    catch {}
+    return "alternate";
+  });
+  useEffect(() => {
+    try { localStorage.setItem("app_flapper_color", crazyTimeFlapper); } catch {}
+  }, [crazyTimeFlapper]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeMenu, setActiveMenu] = useState<string>(() => {
+    try { return localStorage.getItem("app_active_menu") || "dashboard"; }
+    catch { return "dashboard"; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("app_show_landing", showLandingPage.toString()); } catch {}
+  }, [showLandingPage]);
+
+  useEffect(() => {
+    try { localStorage.setItem("app_active_menu", activeMenu); } catch {}
+  }, [activeMenu]);
+
+  // Global analysis window (candle period in minutes) shared between PatternDetector and MarketChartAnalysis
+  const [candlePeriodMinutes, setCandlePeriodMinutes] = useState<number>(() => {
+    try { const saved = localStorage.getItem("candle_period_minutes"); return saved ? parseInt(saved) : 5; }
+    catch { return 5; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("candle_period_minutes", candlePeriodMinutes.toString()); } catch {}
+  }, [candlePeriodMinutes]);
 
   // Shared signal relay configuration (persisted in localStorage)
   const signalRelay = useSignalRelay();
@@ -323,19 +357,20 @@ export default function App() {
             {/* Global Analysis Window (Periodo) Selector — shared by PatternDetector & MarketChartAnalysis */}
             <div className="flex items-center gap-1 rounded-xl bg-indigo-500/[0.03] border border-indigo-500/20 p-1 px-2.5 h-[38px] transition-all" title="Período de análise compartilhado entre Simulador de Padrões e Catalogador de Velas">
               <BarChart3 size={12} className="text-indigo-400 shrink-0" />
-              <span className="text-[9px] uppercase font-mono font-black text-indigo-400 select-none hidden sm:inline">Janela:</span>
+              <span className="text-[9px] uppercase font-mono font-black text-indigo-400 select-none hidden sm:inline">Vela:</span>
               <select
-                value={analysisWindow}
-                onChange={(e) => setAnalysisWindow(parseInt(e.target.value))}
+                value={candlePeriodMinutes}
+                onChange={(e) => setCandlePeriodMinutes(parseInt(e.target.value))}
                 className="bg-transparent text-[10px] text-indigo-200 font-mono font-bold outline-none cursor-pointer border-none focus:ring-0 p-0 py-0.5"
-                style={{ WebkitAppearance: 'menulist', width: '48px' }}
+                style={{ WebkitAppearance: 'menulist', width: '52px' }}
               >
-                <option value={5} className="bg-[#0b0b10]">5r</option>
-                <option value={10} className="bg-[#0b0b10]">10r</option>
-                <option value={15} className="bg-[#0b0b10]">15r</option>
-                <option value={20} className="bg-[#0b0b10]">20r</option>
-                <option value={30} className="bg-[#0b0b10]">30r</option>
-                <option value={50} className="bg-[#0b0b10]">50r</option>
+                <option value={1} className="bg-[#0b0b10]">1m</option>
+                <option value={5} className="bg-[#0b0b10]">5m</option>
+                <option value={15} className="bg-[#0b0b10]">15m</option>
+                <option value={30} className="bg-[#0b0b10]">30m</option>
+                <option value={60} className="bg-[#0b0b10]">1h</option>
+                <option value={120} className="bg-[#0b0b10]">2h</option>
+                <option value={360} className="bg-[#0b0b10]">6h</option>
               </select>
               </div>
 
@@ -489,6 +524,7 @@ export default function App() {
                       { id: 'patterns', icon: Target, label: 'Padrões', desc: 'Pattern + Soros' },
                       { id: 'simulator', icon: DollarSign, label: 'Simulador', desc: 'Estratégias' },
                       { id: 'delays', icon: Timer, label: 'Atrasos', desc: 'Ciclos' },
+                      { id: 'sector', icon: Crosshair, label: 'Setor', desc: 'Análise Completa' },
                       { id: 'frequency', icon: BarChart4, label: 'Frequência', desc: 'Distribuição' },
                       { id: 'history', icon: History, label: 'Histórico', desc: 'Resultados' },
                       { id: 'market', icon: Layers, label: 'Velas', desc: 'Padrões & Catálogo' },
@@ -538,9 +574,10 @@ export default function App() {
                 )}
 
                 {activeMenu === 'aiadvisor' && <AIAdvisor spins={filteredSpins} stats={stats} />}
-                {activeMenu === 'patterns' && <PatternDetector spins={filteredSpins} analysisWindow={analysisWindow} />}
+                {activeMenu === 'patterns' && <PatternDetector spins={filteredSpins} candlePeriodMinutes={candlePeriodMinutes} />}
                 {activeMenu === 'simulator' && <BetSimulator spins={filteredSpins} />}
                 {activeMenu === 'delays' && <DelayAnalysis allSpins={filteredSpins} />}
+                {activeMenu === 'sector' && <SectorAnalysis allSpins={filteredSpins} />}
 
                 {activeMenu === 'frequency' && (
                   <FrequencyAnalysis
@@ -558,7 +595,7 @@ export default function App() {
                   />
                 )}
 
-                {activeMenu === 'market' && <MarketChartAnalysis allSpins={filteredSpins} candleSize={analysisWindow} />}
+                {activeMenu === 'market' && <MarketChartAnalysis allSpins={filteredSpins} candlePeriodMinutes={candlePeriodMinutes} />}
                 {activeMenu === 'signals' && <SignalSender />}
 
                 {/* Footer card */}

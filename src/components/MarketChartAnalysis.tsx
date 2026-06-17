@@ -7,12 +7,18 @@ import {
   Flame, Zap, Eye, Activity, ChevronUp, ChevronDown, Target,
   Clock, ArrowUp, ArrowDown, Minus, Send
 } from "lucide-react";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface MarketChartAnalysisProps {
   allSpins: ParsedSpin[];
-  candleSize: number; // Global analysis window from App.tsx
+  candlePeriodMinutes: number; // Time period per candle in minutes (1m, 5m, 15m, 30m, 1h, 2h, 6h)
+}
+
+function formatPeriodLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes}min`;
+  const h = minutes / 60;
+  return `${h}h`;
 }
 
 // ====== KNOWN CANDLESTICK PATTERNS adapted for Crazy Time context ======
@@ -30,7 +36,7 @@ interface CandlePattern {
 function generateCandlePatterns(
   chronologicalSpins: ParsedSpin[], 
   selectedSector: string,
-  candleSize: number,
+  candlePeriodMinutes: number,
   delayStatsMap: Record<string, { currentDelay: number; p80: number; p90: number; severity: string; pressurePercentage: number }>
 ): CandlePattern[] {
   if (chronologicalSpins.length < 10) return [];
@@ -73,21 +79,33 @@ function generateCandlePatterns(
   const hitsIn10 = last10.filter(s => isHit(s)).length;
   const hitsIn20 = recentSpins.slice(0, 20).filter(s => isHit(s)).length;
 
-  // Build candles for pattern detection
+  // Build candles for time-based pattern detection (group by minute intervals)
+  const intervalMs = candlePeriodMinutes * 60 * 1000;
   const candles: any[] = [];
-  for (let i = 0; i < recentSpins.length; i += candleSize) {
-    const chunk = recentSpins.slice(i, i + candleSize);
-    if (chunk.length < 2) continue;
-    let hits = 0;
-    chunk.forEach(s => { if (isHit(s)) hits++; });
-    candles.push({
-      open: hits,
-      high: hits + 1,
-      low: hits,
-      close: hits,
-      volume: hits,
-      ratio: hits / chunk.length,
-    });
+  if (recentSpins.length >= 2) {
+    const oldestTime = recentSpins[recentSpins.length - 1].timestamp;
+    const newestTime = recentSpins[0].timestamp;
+    // Generate time intervals from newest to oldest
+    let intervalStart = newestTime;
+    while (intervalStart > oldestTime) {
+      const intervalEnd = intervalStart;
+      intervalStart = intervalStart - intervalMs;
+      const chunk = recentSpins.filter(
+        s => s.timestamp >= intervalStart && s.timestamp < intervalEnd
+      );
+      if (chunk.length < 2) continue;
+      let hits = 0;
+      chunk.forEach(s => { if (isHit(s)) hits++; });
+      candles.push({
+        open: hits,
+        high: hits + 1,
+        low: hits,
+        close: hits,
+        volume: hits,
+        ratio: hits / chunk.length,
+        timeLabel: new Date(intervalStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      });
+    }
   }
 
   // ==========================================
@@ -234,9 +252,13 @@ function generateCandlePatterns(
   return patterns;
 }
 
-export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChartAnalysisProps) {
-  const [selectedSector, setSelectedSector] = useState<string>("1");
-  const [autoUpdate, setAutoUpdate] = useState<boolean>(true);
+export default function MarketChartAnalysis({ allSpins, candlePeriodMinutes }: MarketChartAnalysisProps) {
+  const [selectedSector, setSelectedSector] = useState<string>(() => {
+    try { return localStorage.getItem("mc_selected_sector") || "1"; } catch { return "1"; }
+  });
+  const [autoUpdate, setAutoUpdate] = useState<boolean>(() => {
+    try { return localStorage.getItem("mc_auto_update") !== "false"; } catch { return true; }
+  });
   const [showProbabilityTip, setShowProbabilityTip] = useState<string | null>(null);
 
   // Signal relay
@@ -245,7 +267,7 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
   const [autoSendEnabled, setAutoSendEnabled] = useState(() => {
     try { return localStorage.getItem("mc_auto_send") === "true"; } catch { return false; }
   });
-  const lastAutoSentPattern = useRef<string | null>(null);
+  const lastAutoSentKey = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -253,6 +275,14 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
       else localStorage.removeItem("mc_auto_send");
     } catch {}
   }, [autoSendEnabled]);
+
+  useEffect(() => {
+    try { localStorage.setItem("mc_selected_sector", selectedSector); } catch {}
+  }, [selectedSector]);
+
+  useEffect(() => {
+    try { localStorage.setItem("mc_auto_update", autoUpdate.toString()); } catch {}
+  }, [autoUpdate]);
 
   useEffect(() => {
     if (signalToast) {
@@ -284,6 +314,35 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
   }, [selectedSector, sectorOptions]);
 
   const chronologicalSpins = useMemo(() => [...allSpins].reverse(), [allSpins]);
+
+  // Hit rate simulation (direct, G1, G2) for each sector
+  const calcHitRates = useCallback((targetSector: string): { direct: number; g1: number; g2: number } => {
+    const totalEntries = Math.min(50, chronologicalSpins.length - 3);
+    if (totalEntries < 5) return { direct: 0, g1: 0, g2: 0 };
+    let directHits = 0, g1Hits = 0, g2Hits = 0, attempts = 0;
+    for (let i = 0; i < totalEntries; i++) {
+      const isTargetHit = (spin: ParsedSpin) => {
+        if (targetSector === "bonus") return spin.isBonus;
+        return spin.sectorKey === targetSector;
+      };
+      if (isTargetHit(chronologicalSpins[i])) directHits++;
+      if (isTargetHit(chronologicalSpins[i]) || (chronologicalSpins[i + 1] && isTargetHit(chronologicalSpins[i + 1]))) g1Hits++;
+      if (isTargetHit(chronologicalSpins[i]) || 
+          (chronologicalSpins[i + 1] && isTargetHit(chronologicalSpins[i + 1])) ||
+          (chronologicalSpins[i + 2] && isTargetHit(chronologicalSpins[i + 2]))) g2Hits++;
+      attempts++;
+    }
+    return {
+      direct: Math.round((directHits / attempts) * 100),
+      g1: Math.round((g1Hits / attempts) * 100),
+      g2: Math.round((g2Hits / attempts) * 100),
+    };
+  }, [chronologicalSpins]);
+  const hitRatesCache = useRef<Record<string, { direct: number; g1: number; g2: number }>>({});
+  const getHitRates = useCallback((sector: string) => {
+    if (!hitRatesCache.current[sector]) hitRatesCache.current[sector] = calcHitRates(sector);
+    return hitRatesCache.current[sector];
+  }, [calcHitRates]);
 
   // Delay stats map for pattern generation
   const delayStatsMap = useMemo(() => {
@@ -333,26 +392,83 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
 
   // Generate candle patterns
   const patterns = useMemo(() => {
-    return generateCandlePatterns(chronologicalSpins, selectedSector, candleSize, delayStatsMap);
-  }, [chronologicalSpins, selectedSector, candleSize, delayStatsMap]);
+    return generateCandlePatterns(chronologicalSpins, selectedSector, candlePeriodMinutes, delayStatsMap);
+  }, [chronologicalSpins, selectedSector, candlePeriodMinutes, delayStatsMap]);
+
+  // Build OHLC chart candles from time intervals
+  const chartCandles = useMemo(() => {
+    const intervalMs = candlePeriodMinutes * 60 * 1000;
+    if (chronologicalSpins.length < 2) return [];
+    const payout = activeSectorConfig.payout;
+    const key = activeSectorConfig.key;
+    const isHitSector = (spin: ParsedSpin) => key === "bonus" ? spin.isBonus : spin.sectorKey === key;
+
+    let balance = 1000;
+    const candles: any[] = [];
+    const oldestTime = chronologicalSpins[chronologicalSpins.length - 1].timestamp;
+    const newestTime = chronologicalSpins[0].timestamp;
+    let intervalStart = newestTime;
+
+    while (intervalStart > oldestTime) {
+      const intervalEnd = intervalStart;
+      intervalStart = intervalStart - intervalMs;
+      const chunk = chronologicalSpins.filter(
+        s => s.timestamp >= intervalStart && s.timestamp < intervalEnd
+      );
+      if (chunk.length < 1) continue;
+
+      const openBalance = balance;
+      let highBalance = balance;
+      let lowBalance = balance;
+      let hits = 0;
+
+      // Process chronologically oldest-first within the chunk
+      [...chunk].reverse().forEach(spin => {
+        const hit = isHitSector(spin);
+        if (hit) {
+          balance += payout;
+          hits++;
+        } else {
+          balance -= 1;
+        }
+        if (balance > highBalance) highBalance = balance;
+        if (balance < lowBalance) lowBalance = balance;
+      });
+
+      candles.push({
+        open: openBalance,
+        high: highBalance,
+        low: lowBalance,
+        close: balance,
+        isGreen: balance >= openBalance,
+        volume: hits,
+        volumePct: Math.round((hits / chunk.length) * 100),
+        spinsCount: chunk.length,
+        timeLabel: new Date(intervalStart).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      });
+    }
+    return candles.reverse(); // oldest → newest
+  }, [chronologicalSpins, activeSectorConfig, candlePeriodMinutes]);
 
   // Auto-send logic
   useEffect(() => {
     if (!autoSendEnabled || !isConfigured) return;
     if (patterns.length === 0) return;
 
-    const strongestPattern = patterns[0]; // First = strongest
-    if (strongestPattern.name === lastAutoSentPattern.current) return;
+    const strongestPattern = patterns[0];
+    // Include latest spin timestamp so each new spin triggers a fresh signal
+    const key = `${strongestPattern.name}|${strongestPattern.targetSectors.join(",")}|${chronologicalSpins[0]?.timestamp || ""}`;
+    if (key === lastAutoSentKey.current) return;
 
     if (strongestPattern.strength === "forte" || strongestPattern.strength === "moderada") {
-      lastAutoSentPattern.current = strongestPattern.name;
+      lastAutoSentKey.current = key;
       const spots = mapSectorsToSpots(strongestPattern.targetSectors);
       if (spots.length > 0) {
         sendSignal({ spots, betAmount: 0.5 });
         setSignalToast({ type: "success", message: `📡 Sinal enviado: ${strongestPattern.name}` });
       }
     }
-  }, [patterns, autoSendEnabled, isConfigured, sendSignal]);
+  }, [patterns, autoSendEnabled, isConfigured, sendSignal, chronologicalSpins]);
 
   const handleSendPattern = async (pattern: CandlePattern, betAmount: number = 0.5) => {
     if (!extensionId) {
@@ -449,7 +565,7 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
           <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wide">Período por Vela</label>
           <div className="bg-[#0b0b10] border border-white/5 rounded-xl h-[38px] flex items-center px-4">
             <span className="text-xs font-mono font-bold text-indigo-400">
-              {candleSize} rodadas por vela <span className="text-slate-500">(global)</span>
+              {formatPeriodLabel(candlePeriodMinutes)} por vela <span className="text-slate-500">(global)</span>
             </span>
           </div>
         </div>
@@ -486,6 +602,65 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 📊 CANDLESTICK CHART */} 
+      {chartCandles.length > 0 && (() => {
+        const svgW = 800;
+        const svgH = 200;
+        const pad = 40;
+        const maxVal = Math.max(...chartCandles.map(c => c.high));
+        const minVal = Math.min(...chartCandles.map(c => c.low));
+        const range = maxVal - minVal || 100;
+        const getX = (i: number) => pad + (i / Math.max(1, chartCandles.length - 1)) * (svgW - pad * 2);
+        const getY = (v: number) => svgH - 20 - ((v - minVal) / range) * (svgH - 40);
+        const w = Math.min(16, Math.max(4, (svgW - pad * 2) / (chartCandles.length * 2)));
+
+        return (
+          <div className="border border-white/5 rounded-2xl bg-black/40 overflow-hidden mb-6">
+            <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
+              <h4 className="text-xs font-mono font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                <BarChart3 size={13} className="text-indigo-400" />
+                Gráfico de Velas — {activeSectorConfig.displayName} ({formatPeriodLabel(candlePeriodMinutes)})
+              </h4>
+              <span className="text-[9px] font-mono text-slate-500">{chartCandles.length} velas</span>
+            </div>
+            <div className="w-full overflow-x-auto select-none">
+              <svg viewBox={`0 0 ${svgW} ${svgH}`} className="min-w-[600px] h-[180px] md:h-[200px]">
+                {[0.25, 0.5, 0.75].map(r => {
+                  const v = minVal + range * r;
+                  return (
+                    <g key={r}>
+                      <line x1={pad} y1={getY(v)} x2={svgW} y2={getY(v)} stroke="rgba(255,255,255,0.03)" strokeDasharray="3 3" />
+                      <text x={2} y={getY(v) - 2} fill="rgba(255,255,255,0.15)" fontSize="7" fontFamily="monospace">{Math.round(v)}</text>
+                    </g>
+                  );
+                })}
+                {chartCandles.map((c, i) => {
+                  const cx = getX(i);
+                  const color = c.isGreen ? "#10b981" : "#ef4444";
+                  const candleH = Math.max(1.5, Math.abs(getY(c.close) - getY(c.open)));
+                  const candleY = Math.min(getY(c.open), getY(c.close));
+                  return (
+                    <g key={i}>
+                      <line x1={cx} y1={getY(c.high)} x2={cx} y2={getY(c.low)} stroke={color} strokeWidth="1.2" />
+                      <rect x={cx - w / 2} y={candleY} width={w} height={candleH} fill={color} opacity="0.8" rx="0.5" />
+                    </g>
+                  );
+                })}
+                {/* Time labels */}
+                {chartCandles.filter((_, i) => i % Math.max(1, Math.floor(chartCandles.length / 6)) === 0).map((c, i, arr) => {
+                  const idx = chartCandles.indexOf(c);
+                  return (
+                    <text key={i} x={getX(idx)} y={svgH - 4} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="monospace">
+                      {c.timeLabel}
+                    </text>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* PATTERNS DISPLAY */}
       <div className="mb-6">
@@ -546,6 +721,29 @@ export default function MarketChartAnalysis({ allSpins, candleSize }: MarketChar
                 <p className="text-xs text-slate-400 leading-relaxed mb-3">
                   {pattern.description}
                 </p>
+
+                {/* Hit rates with gales */}
+                <div className="flex items-center gap-2 mb-3">
+                  {(() => {
+                    const hr = getHitRates(pattern.targetSectors[0]);
+                    return (
+                      <>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/15">
+                          <span className="text-[8px] font-mono font-bold text-emerald-400">Direto</span>
+                          <span className="text-[9px] font-mono font-black text-emerald-300">{hr.direct}%</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/15">
+                          <span className="text-[8px] font-mono font-bold text-amber-400">G1</span>
+                          <span className="text-[9px] font-mono font-black text-amber-300">{hr.g1}%</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/15">
+                          <span className="text-[8px] font-mono font-bold text-rose-400">G2</span>
+                          <span className="text-[9px] font-mono font-black text-rose-300">{hr.g2}%</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">

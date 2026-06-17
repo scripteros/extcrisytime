@@ -12,7 +12,7 @@ import { useSignalRelay, mapSectorsToSpots } from "../hooks/useSignalRelay";
 
 interface PatternDetectorProps {
   spins: ParsedSpin[];
-  analysisWindow: number; // Global analysis period from App.tsx
+  candlePeriodMinutes: number; // Global analysis period in minutes from App.tsx
 }
 
 interface Pattern {
@@ -52,7 +52,7 @@ interface ActiveTip {
   baseBetPerSector?: number;
 }
 
-export default function PatternDetector({ spins, analysisWindow }: PatternDetectorProps) {
+export default function PatternDetector({ spins, candlePeriodMinutes }: PatternDetectorProps) {
   // Statistics and learning states persisted in LocalStorage
   const [greensCount, setGreensCount] = useState<number>(() => {
     const saved = localStorage.getItem("pd_greens_count");
@@ -443,7 +443,7 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
     const active: Pattern[] = [];
     const almost: Pattern[] = [];
 
-    if (spins.length < Math.min(5, analysisWindow / 2)) return { activePatterns: active, almostFormedPatterns: almost };
+    if (spins.length < Math.min(5, Math.max(3, candlePeriodMinutes / 2))) return { activePatterns: active, almostFormedPatterns: almost };
 
     // --- 1. Consecutive Repetitions (type: "repetition") ---
     // Rule: normally 2. Stricter checking = 2 + adaptation weight
@@ -1036,8 +1036,8 @@ export default function PatternDetector({ spins, analysisWindow }: PatternDetect
           {/* Global window indicator */}
           <div className="px-2.5 py-1.5 rounded-lg bg-indigo-500/5 border border-indigo-500/20 flex items-center gap-1.5">
             <BarChart3 size={11} className="text-indigo-400" />
-            <span className="text-[9px] font-mono font-bold text-indigo-300 uppercase tracking-wider hidden sm:inline">Janela:</span>
-            <span className="text-[10px] font-mono font-black text-indigo-200">{analysisWindow}r</span>
+            <span className="text-[9px] font-mono font-bold text-indigo-300 uppercase tracking-wider hidden sm:inline">Vela:</span>
+            <span className="text-[10px] font-mono font-black text-indigo-200">{candlePeriodMinutes < 60 ? `${candlePeriodMinutes}m` : `${candlePeriodMinutes/60}h`}</span>
           </div>
         </div>
       </div>

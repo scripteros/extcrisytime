@@ -40,6 +40,7 @@ export function mapSectorsToSpots(sectors: string[]): string[] {
 export interface SignalPayload {
   extensionId?: string;   // falls back to hook state
   chip: number;
+  betAmount?: number;     // alias for chip (used by callers)
   spots: string[];
   delay?: number;
   repeat?: number;
@@ -84,7 +85,8 @@ export function useSignalRelay() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             extensionId: extId,
-            chip: payload.chip,
+            chip: payload.chip ?? payload.betAmount ?? 0.5,
+            betAmount: payload.betAmount ?? payload.chip ?? 0.5,
             spots: payload.spots,
             delay: payload.delay ?? 300,
             repeat: payload.repeat ?? 1,

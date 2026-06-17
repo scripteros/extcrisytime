@@ -6,6 +6,8 @@ import { useSignalRelay, mapSectorsToSpots } from "../hooks/useSignalRelay";
 
 interface BetSimulatorProps {
   spins: ParsedSpin[]; // Raw spins array, index 0 is most recent
+  crazyTimeFlapper: "alternate" | "Green" | "Blue" | "Yellow";
+  setCrazyTimeFlapper: (v: "alternate" | "Green" | "Blue" | "Yellow") => void;
 }
 
 interface BetLog {
@@ -27,10 +29,16 @@ const formatBRL = (val: number) => {
   return val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-export default function BetSimulator({ spins }: BetSimulatorProps) {
+export default function BetSimulator({ spins, crazyTimeFlapper, setCrazyTimeFlapper }: BetSimulatorProps) {
   // Simulator configuration
-  const [initialBankroll, setInitialBankroll] = useState<number>(1000);
-  const [baseBet, setBaseBet] = useState<number>(10);
+  const [initialBankroll, setInitialBankroll] = useState<number>(() => {
+    const saved = localStorage.getItem("bs_initial_bankroll");
+    return saved ? parseFloat(saved) : 50;
+  });
+  const [baseBet, setBaseBet] = useState<number>(() => {
+    const saved = localStorage.getItem("bs_base_bet");
+    return saved ? parseFloat(saved) : 0.50;
+  });
   const [progressionType, setProgressionType] = useState<"martingale" | "soros">("martingale");
   const [maxGales, setMaxGales] = useState<number>(2);
   const [maxSorosLevels, setMaxSorosLevels] = useState<number>(3);
@@ -63,6 +71,14 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
       else localStorage.removeItem("bs_auto_send");
     } catch {}
   }, [autoSendSimulator]);
+
+  useEffect(() => {
+    try { localStorage.setItem("bs_initial_bankroll", initialBankroll.toString()); } catch {}
+  }, [initialBankroll]);
+
+  useEffect(() => {
+    try { localStorage.setItem("bs_base_bet", baseBet.toString()); } catch {}
+  }, [baseBet]);
 
   // Backtest specific states
   const [backtestChartHistory, setBacktestChartHistory] = useState<number[]>([]);
@@ -381,6 +397,73 @@ export default function BetSimulator({ spins }: BetSimulatorProps) {
           >
             <RotateCcw size={15} />
           </button>
+        </div>
+      </div>
+
+      {/* Flapper Simulation Card */}
+      <div className="glass-panel p-4 md:p-5 rounded-2xl border border-white/5 bg-gradient-to-r from-slate-900/40 to-slate-900/20 shadow-lg relative overflow-hidden mb-6">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-bl from-[#d4a84c]/5 to-[#ec4899]/0 rounded-full filter blur-xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          <div className="max-w-xl">
+            <h3 className="font-display font-black text-xs md:text-sm text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="p-1 px-1.5 bg-[#d4a84c]/10 text-[#d4a84c] rounded border border-[#d4a84c]/20 text-[10px]">🎯 NOVO</span>
+              SIMULAÇÃO DE FLAPPER • CRAZY TIME BONUS
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              Escolha qual cor de flapper simular. O catalogador, gráficos, histórico e o simulador de apostas recalcularão instantaneamente todos os resultados utilizando os multiplicadores da cor selecionada.
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => setCrazyTimeFlapper("alternate")}
+              className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                crazyTimeFlapper === "alternate"
+                  ? "bg-white/10 text-white border-white/25 shadow-md"
+                  : "text-slate-400 border-transparent hover:text-white hover:bg-white/5"
+              }`}
+            >
+              🔄 Alternar/Misto
+            </button>
+
+            <div className="h-4 w-[1px] bg-white/10 mx-1 hidden sm:block" />
+
+            <button
+              onClick={() => setCrazyTimeFlapper("Green")}
+              className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                crazyTimeFlapper === "Green"
+                  ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                  : "text-slate-400 border-transparent hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              Verde
+            </button>
+
+            <button
+              onClick={() => setCrazyTimeFlapper("Blue")}
+              className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                crazyTimeFlapper === "Blue"
+                  ? "bg-blue-500/15 text-blue-300 border-blue-500/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]"
+                  : "text-slate-400 border-transparent hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              Azul
+            </button>
+
+            <button
+              onClick={() => setCrazyTimeFlapper("Yellow")}
+              className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                crazyTimeFlapper === "Yellow"
+                  ? "bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+                  : "text-slate-400 border-transparent hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              Amarelo
+            </button>
+          </div>
         </div>
       </div>
 
