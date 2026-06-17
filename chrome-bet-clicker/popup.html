@@ -103,6 +103,34 @@
     .signal-indicator .msg { flex: 1; font-size: 11px; color: #94a3b8; }
     .signal-indicator .msg strong { color: #f1f5f9; display: block; margin-bottom: 2px; }
 
+    /* Test Buttons */
+    .test-section { margin-top: 12px; border-top: 1px solid #1e293b; padding-top: 10px; }
+    .test-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: #64748b; font-weight: 600; margin-bottom: 6px; display: block;
+    }
+    .test-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+    .test-btn {
+      flex: 1; min-width: 80px; padding: 6px 8px; border-radius: 6px;
+      border: 1px solid #334155; background: #1e293b; color: #94a3b8;
+      font-size: 10px; cursor: pointer; transition: 0.2s; text-align: center;
+    }
+    .test-btn:hover { background: #334155; color: #f1f5f9; border-color: #22c55e; }
+    .test-btn:active { transform: scale(0.96); }
+    .test-btn.spot1 { border-color: #3b8276; color: #5eead4; }
+    .test-btn.chip { border-color: #92400e; color: #fbbf24; }
+    .test-btn.status { border-color: #334155; color: #94a3b8; }
+    .test-btn.gales { border-color: #6d28d9; color: #c084fc; }
+    .test-result {
+      margin-top: 6px; padding: 6px 8px; border-radius: 6px;
+      background: #1e293b; border: 1px solid #334155; font-size: 10px;
+      color: #94a3b8; font-family: monospace; min-height: 18px;
+      display: none; white-space: pre-wrap;
+    }
+    .test-result.show { display: block; }
+    .test-result.success { border-color: #22c55e; color: #4ade80; }
+    .test-result.error { border-color: #ef4444; color: #f87171; }
+
     .footer {
       margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b;
       font-size: 10px; color: #475569; text-align: center;
@@ -141,6 +169,19 @@
         <strong id="signalTitle">Sinal Recebido!</strong>
         <span id="signalDesc">Aguardando...</span>
       </div>
+    </div>
+
+    <!-- Test Buttons -->
+    <div class="test-section">
+      <label class="test-label">🧪 Testar Cliques</label>
+      <div class="test-buttons">
+        <button class="test-btn spot1" id="testSpot1">🎯 Spot 1</button>
+        <button class="test-btn chip" id="testChip">💰 Ficha 0,50</button>
+        <button class="test-btn" id="testBetOnAll">📋 Todos Spots</button>
+        <button class="test-btn status" id="testTimer">⏱ Timer</button>
+        <button class="test-btn gales" id="testGale">🔄 Gale</button>
+      </div>
+      <div class="test-result" id="testResult"></div>
     </div>
 
     <div class="footer">Conectado ao servidor de sinais</div>
