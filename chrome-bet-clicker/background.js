@@ -8,8 +8,14 @@ let wsExtensionId = null;
 
 async function getWsConfig() {
   const config = await chrome.storage.local.get(['wsServerUrl', 'wsExtensionId']);
+  let url = config.wsServerUrl || 'wss://roletas.mobap.com.br';
+  // Migrar URL antiga (servico -> roletas)
+  if (url.includes('servico.mobap.com.br')) {
+    url = 'wss://roletas.mobap.com.br';
+    await chrome.storage.local.set({ wsServerUrl: url });
+  }
   return {
-    serverUrl: config.wsServerUrl || 'ws://servico.mobap.com.br:3005',
+    serverUrl: url,
     extensionId: config.wsExtensionId || null
   };
 }
